@@ -19,6 +19,12 @@ supabase/.temp
 *.local
 !.env.example
 
+# Private working materials
+alex_meeting_transcript.txt
+724.jpg
+725.jpg
+weweb_prompt.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

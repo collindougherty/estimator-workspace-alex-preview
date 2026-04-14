@@ -1,9 +1,9 @@
 do $$
 declare
-  demo_email text := 'collin.dougherty@example.com';
-  demo_name text := 'Collin Dougherty';
-  demo_org_slug text := 'collin-contracting-demo';
-  demo_org_name text := 'Collin Contracting Demo';
+  demo_email text := 'demo@estimator-workspace.app';
+  demo_name text := 'Estimator Workspace Demo';
+  demo_org_slug text := 'estimator-workspace-demo';
+  demo_org_name text := 'Estimator Workspace Demo';
   demo_user_id uuid;
   demo_org_id uuid;
   system_preset_id uuid;

@@ -9,7 +9,7 @@ with seeded_preset as (
     'system',
     'roofing_gutters_siding',
     'Roofing / Gutters / Siding',
-    'System preset seeded from the Alex meeting transcript and sketches. Estimate-first, with WBS rows crossed against labor, materials, equipment, subcontractors, overhead, and profit.'
+    'System preset for residential exterior work. Estimate-first, with WBS rows crossed against labor, materials, equipment, subcontractors, overhead, and profit.'
   )
   on conflict ((lower(key))) where scope = 'system'
   do update set

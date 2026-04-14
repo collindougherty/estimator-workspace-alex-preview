@@ -6,9 +6,8 @@ This file tracks the local iterative workflow for the coded frontend.
 
 Build the app in small loops and keep every loop grounded in:
 
-- `alex_meeting_transcript.txt`
-- `724.jpg`
-- `725.jpg`
+- product notes kept outside the repository
+- current UI screenshots and design references
 
 ## Working loop
 
@@ -18,7 +17,7 @@ Build the app in small loops and keep every loop grounded in:
    - log in
    - click through the main screens
    - capture screenshots
-4. review the screenshots and compare against the meeting notes
+4. review the screenshots and compare against the current product direction
 5. clean dead code and simplify the UI
 6. repeat
 
@@ -32,7 +31,7 @@ Build the app in small loops and keep every loop grounded in:
 - local coded frontend
 - direct control over Supabase auth and queries
 - Playwright screenshots and smoke tests for each iteration
-- manual comparison of each screen to the transcript and sketch intent
+- manual comparison of each screen to the current workflow and design intent
 
 ## What is working in the loop
 
