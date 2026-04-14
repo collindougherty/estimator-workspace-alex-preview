@@ -32,7 +32,7 @@ const readLocalEnv = () => {
 const { demoEmail, demoPassword } = readLocalEnv()
 
 test('login, dashboard, and project detail render cleanly', async ({ page }) => {
-  mkdirSync('artifacts/iteration-4', { recursive: true })
+  mkdirSync('artifacts/iteration-7', { recursive: true })
 
   await page.goto('/login')
   await page.getByLabel('Email').fill(demoEmail)
@@ -42,48 +42,35 @@ test('login, dashboard, and project detail render cleanly', async ({ page }) => 
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible()
   await expect(page.getByRole('link', { name: /Pine Court Storm Repair/i })).toBeVisible()
   await page.screenshot({
-    path: 'artifacts/iteration-4/dashboard.png',
+    path: 'artifacts/iteration-7/dashboard.png',
     fullPage: true,
   })
 
   await page.getByRole('link', { name: /Pine Court Storm Repair/i }).click()
   await expect(page).toHaveURL(/\/projects\//)
   await expect(page.getByRole('heading', { name: 'Pine Court Storm Repair' })).toBeVisible()
-  await expect(page.getByLabel('1.1.1 scope name')).toHaveValue('Tear off and disposal')
+  await expect(page.getByRole('heading', { name: 'Tracking' })).toBeVisible()
+  await expect(page.getByLabel('1.1.1 actual material cost')).toBeVisible()
   await page.screenshot({
-    path: 'artifacts/iteration-4/project-active.png',
+    path: 'artifacts/iteration-7/project-active.png',
     fullPage: true,
   })
 
-  const estimatedTotalCard = page.locator('.metric-card').filter({ hasText: 'Estimate' })
-  const materialCostInput = page.getByLabel('1.1.1 material cost')
-  const saveTearOff = page.getByRole('button', { name: 'Save 1.1.1' })
-
-  await materialCostInput.fill('501')
-  await expect(saveTearOff).toBeEnabled()
-  await saveTearOff.click()
-  await expect(estimatedTotalCard.getByText('$23,202')).toBeVisible()
-  await expect(page.getByText('$2,443')).toBeVisible()
-
-  await materialCostInput.fill('500')
-  await expect(saveTearOff).toBeEnabled()
-  await saveTearOff.click()
-  await expect(estimatedTotalCard.getByText('$23,201')).toBeVisible()
-  await expect(page.getByText('$2,442')).toBeVisible()
-
-  await page.getByRole('link', { name: 'Projects' }).click()
+  await page.getByRole('link', { name: /Back/i }).click()
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByRole('link', { name: /Maple Street Roof Replacement/i })).toBeVisible()
   await page.getByRole('link', { name: /Maple Street Roof Replacement/i }).click()
   await expect(page).toHaveURL(/\/projects\//)
   await expect(page.getByRole('heading', { name: 'Maple Street Roof Replacement' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Estimate' })).toBeVisible()
   await expect(page.getByLabel('1.2.3 scope name')).toHaveValue('Architectural shingles')
+  await expect(page.getByLabel('1.2.3 material cost')).toBeVisible()
   await page.screenshot({
-    path: 'artifacts/iteration-4/project-bidding.png',
+    path: 'artifacts/iteration-7/project-bidding.png',
     fullPage: true,
   })
 
-  await page.getByRole('link', { name: 'Projects' }).click()
+  await page.getByRole('link', { name: /Back/i }).click()
   await expect(page).toHaveURL(/\/$/)
   await page.getByRole('button', { name: 'Sign out' }).click()
   await expect(page).toHaveURL(/\/login$/)

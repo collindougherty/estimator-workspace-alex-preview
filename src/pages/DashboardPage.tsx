@@ -148,11 +148,6 @@ export const DashboardPage = () => {
     [projects],
   )
 
-  const selectedOrganization = useMemo(
-    () => organizations.find((organization) => organization.id === selectedOrganizationId) ?? null,
-    [organizations, selectedOrganizationId],
-  )
-
   const handleCreateOrganization = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setIsCreatingOrganization(true)
@@ -259,12 +254,7 @@ export const DashboardPage = () => {
       <header className="topbar topbar-simple">
         <div className="topbar-heading">
           <h1>Projects</h1>
-          {selectedOrganization ? (
-            <div className="organization-badge">
-              <span>Organization</span>
-              <strong>{selectedOrganization.name}</strong>
-            </div>
-          ) : null}
+          <p className="topbar-subtitle">Simple bid and job tracking workspace.</p>
         </div>
         <div className="topbar-actions">
           {organizations.length > 0 ? (
