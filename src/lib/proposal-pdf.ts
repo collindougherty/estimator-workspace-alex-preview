@@ -31,16 +31,16 @@ const ACCEPTANCE_TOP_GAP = 12
 const ACCEPTANCE_LINE_Y_OFFSET = 15
 const TABLE_BOTTOM_MARGIN = PAGE_HEIGHT - FOOTER_LINE_Y + 38
 const COLORS = {
-  ink: [15, 23, 42] as RgbColor,
-  brand: [37, 99, 235] as RgbColor,
-  brandSoft: [239, 246, 255] as RgbColor,
+  ink: [22, 35, 22] as RgbColor,
+  brand: [47, 125, 50] as RgbColor,
+  brandSoft: [230, 244, 231] as RgbColor,
   surface: [255, 255, 255] as RgbColor,
-  surfaceAlt: [248, 250, 252] as RgbColor,
-  panel: [241, 245, 249] as RgbColor,
-  border: [226, 232, 240] as RgbColor,
-  text: [15, 23, 42] as RgbColor,
-  muted: [100, 116, 139] as RgbColor,
-  subtle: [203, 213, 225] as RgbColor,
+  surfaceAlt: [241, 247, 239] as RgbColor,
+  panel: [237, 243, 234] as RgbColor,
+  border: [201, 214, 201] as RgbColor,
+  text: [22, 35, 22] as RgbColor,
+  muted: [95, 111, 96] as RgbColor,
+  subtle: [207, 218, 208] as RgbColor,
 }
 
 const slugify = (value: string) =>
@@ -185,7 +185,7 @@ const drawHeaderCallout = ({
     y,
     width,
     height: 86,
-    fillColor: [30, 41, 59],
+    fillColor: [28, 46, 29],
     borderColor: COLORS.brand,
   })
 
@@ -202,7 +202,7 @@ const drawHeaderCallout = ({
   doc.setTextColor(255, 255, 255)
   doc.text(preparedDate, x + 18, y + 44)
 
-  doc.setDrawColor(71, 85, 105)
+  doc.setDrawColor(84, 109, 85)
   doc.setLineWidth(1)
   doc.line(x + 18, y + 54, x + width - 18, y + 54)
 
