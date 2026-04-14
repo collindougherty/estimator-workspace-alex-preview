@@ -560,8 +560,9 @@ export const ProjectItemPage = () => {
       <header className="project-header project-header-simple">
         <div className="project-header-copy">
           <Link className="back-link" to={`/projects/${projectId}`}>
-            ← Project items
+            ← {estimateOnlyMode ? 'Bid builder' : 'Project items'}
           </Link>
+          <p className="eyebrow">ProjectBuilder</p>
           <h1>{item?.item_name ?? (isLoading ? 'Loading item…' : 'Scope item not found')}</h1>
           <p className="project-meta-line">
             <span>{project?.name ?? 'Project'}</span>

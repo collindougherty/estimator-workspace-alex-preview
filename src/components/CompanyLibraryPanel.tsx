@@ -16,6 +16,7 @@ import type {
 type CompanyLibraryPanelProps = {
   employees: OrganizationEmployeeLibraryItem[]
   equipment: OrganizationEquipmentLibraryItem[]
+  hideHeader?: boolean
   isBusy: boolean
   materials: OrganizationMaterialLibraryItem[]
   onCreateEmployee: (draft: { hourlyRate: number; name: string; role: string }) => Promise<void>
@@ -30,6 +31,7 @@ type CompanyLibraryPanelProps = {
 export const CompanyLibraryPanel = ({
   employees,
   equipment,
+  hideHeader = false,
   isBusy,
   materials,
   onCreateEmployee,
@@ -114,15 +116,17 @@ export const CompanyLibraryPanel = ({
 
   return (
     <article className="panel panel-compact company-library-panel">
-      <div className="panel-heading panel-heading-compact">
-        <div>
-          <h2>Company library</h2>
-          <p className="panel-meta">
-            Only this company sees these prefills. Add your own roofing labor, equipment, and
-            material defaults here.
-          </p>
+      {!hideHeader ? (
+        <div className="panel-heading panel-heading-compact">
+          <div>
+            <h2>Company library</h2>
+            <p className="panel-meta">
+              Only this company sees these prefills. Add your own roofing labor, equipment, and
+              material defaults here.
+            </p>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <div className="company-library-grid">
         <section className="company-library-card">

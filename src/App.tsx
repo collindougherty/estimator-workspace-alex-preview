@@ -12,15 +12,15 @@ const AppRouter = () => {
   const { isLoading, user } = useAuth()
 
   if (isLoading) {
-    return (
-      <main className="loading-screen">
-        <div className="loading-card">
-          <p className="eyebrow">Estimator workspace</p>
-          <h1>Loading workspace…</h1>
-          <p>Preparing workspace.</p>
-        </div>
-      </main>
-    )
+      return (
+        <main className="loading-screen">
+          <div className="loading-card">
+            <p className="eyebrow">ProjectBuilder</p>
+            <h1>Loading workspace…</h1>
+            <p>Preparing workspace.</p>
+          </div>
+        </main>
+      )
   }
 
   return (

@@ -253,6 +253,7 @@ export const DashboardPage = () => {
     <main className="app-screen app-screen-compact">
       <header className="topbar topbar-simple">
         <div className="topbar-heading">
+          <p className="eyebrow">ProjectBuilder</p>
           <h1>Projects</h1>
           <p className="topbar-subtitle">Simple bid and job tracking workspace.</p>
         </div>

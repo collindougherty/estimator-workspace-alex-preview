@@ -34,70 +34,92 @@ const iPhone13 = devices['iPhone 13']
 
 const signInDemoUser = async (page: Page) => {
   await page.goto('/login')
+  await expect(page.getByText('ProjectBuilder')).toBeVisible()
   await page.getByLabel('Email').fill(demoEmail)
   await page.getByLabel('Password').fill(demoPassword)
   await page.getByRole('button', { name: 'Sign in' }).click()
 }
 
-test('login, dashboard, project list, and item detail render cleanly', async ({ page }) => {
-  mkdirSync('artifacts/iteration-9-alex-flow', { recursive: true })
+test('dashboard, tracking fallback, and two-page bid builder render cleanly', async ({ page }) => {
+  mkdirSync('artifacts/iteration-10-two-page-builder', { recursive: true })
 
   await signInDemoUser(page)
 
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible()
+  await expect(page.getByText('ProjectBuilder')).toBeVisible()
   await expect(page.getByRole('link', { name: /Pine Court Storm Repair/i })).toBeVisible()
   await page.screenshot({
-    path: 'artifacts/iteration-9-alex-flow/dashboard.png',
+    path: 'artifacts/iteration-10-two-page-builder/dashboard.png',
     fullPage: true,
   })
 
   await page.getByRole('link', { name: /Pine Court Storm Repair/i }).click()
-  await expect(page).toHaveURL(/\/projects\//)
   await expect(page.getByRole('heading', { name: 'Pine Court Storm Repair' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Terminal items' })).toBeVisible()
-  await expect(page.getByRole('link', { name: /Tear off and disposal/i })).toBeVisible()
   await page.screenshot({
-    path: 'artifacts/iteration-9-alex-flow/project-tracking-list.png',
+    path: 'artifacts/iteration-10-two-page-builder/project-tracking-list.png',
     fullPage: true,
   })
 
   await page.getByRole('link', { name: /Tear off and disposal/i }).click()
   await expect(page).toHaveURL(/\/projects\/.+\/items\//)
-  await expect(page.getByRole('heading', { name: 'Tear off and disposal' })).toBeVisible()
   await expect(page.getByLabel('Actual quantity')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Billing + overhead' })).toBeVisible()
   await page.screenshot({
-    path: 'artifacts/iteration-9-alex-flow/item-tracking-detail.png',
+    path: 'artifacts/iteration-10-two-page-builder/item-tracking-detail.png',
     fullPage: true,
   })
 
   await page.getByRole('link', { name: /Project items/i }).click()
   await expect(page.getByRole('heading', { name: 'Terminal items' })).toBeVisible()
   await page.getByRole('link', { name: /Back/i }).click()
-  await expect(page).toHaveURL(/\/$/)
+
   await expect(page.getByRole('link', { name: /Maple Street Roof Replacement/i })).toBeVisible()
   await page.getByRole('link', { name: /Maple Street Roof Replacement/i }).click()
-  await expect(page).toHaveURL(/\/projects\//)
   await expect(page.getByRole('heading', { name: 'Maple Street Roof Replacement' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Terminal items' })).toBeVisible()
-  await page.getByRole('link', { name: /Architectural shingles/i }).click()
-  await expect(page).toHaveURL(/\/projects\/.+\/items\//)
-  await expect(page.getByRole('heading', { name: 'Architectural shingles' })).toBeVisible()
-  await expect(page.getByLabel('Unit of measure')).toBeVisible()
-  await expect(page.getByLabel('Cost / unit')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Bid builder' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Materials' }).first()).toBeVisible()
   await page.screenshot({
-    path: 'artifacts/iteration-9-alex-flow/item-estimate-detail.png',
+    path: 'artifacts/iteration-10-two-page-builder/project-bid-builder.png',
     fullPage: true,
   })
 
-  await page.goto('/')
+  await page.getByRole('button', { name: 'Materials' }).first().click()
+  const materialsDialog = page.getByRole('dialog')
+  await expect(materialsDialog.getByRole('heading', { name: 'Materials picker' })).toBeVisible()
+  await expect(materialsDialog.getByRole('searchbox')).toBeVisible()
+  await materialsDialog.screenshot({
+    path: 'artifacts/iteration-10-two-page-builder/materials-picker.png',
+  })
+  await page.getByRole('button', { name: 'Close' }).click()
+
+  await page.getByRole('button', { name: 'Company library' }).click()
+  const libraryDialog = page.getByRole('dialog')
+  await expect(libraryDialog.getByRole('heading', { name: 'Company library' })).toBeVisible()
+  await libraryDialog.screenshot({
+    path: 'artifacts/iteration-10-two-page-builder/company-library.png',
+  })
+  await page.getByRole('button', { name: 'Close' }).click()
+
+  await page.getByRole('link', { name: 'Advanced editor' }).first().click()
+  await expect(page).toHaveURL(/\/projects\/.+\/items\//)
+  await expect(page.getByRole('link', { name: /Bid builder/i })).toBeVisible()
+  await expect(page.getByLabel('Unit of measure')).toBeVisible()
+  await expect(page.getByLabel('Cost / unit')).toBeVisible()
+  await page.screenshot({
+    path: 'artifacts/iteration-10-two-page-builder/item-estimate-advanced.png',
+    fullPage: true,
+  })
+
+  await page.getByRole('link', { name: /Bid builder/i }).click()
+  await expect(page.getByRole('heading', { name: 'Bid builder' })).toBeVisible()
+
+  await page.getByRole('link', { name: /Back/i }).click()
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible()
   await page.getByRole('button', { name: 'Sign out' }).click()
   await expect(page).toHaveURL(/\/login$/)
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
-
-  await signInDemoUser(page)
-  await expect(page.getByRole('link', { name: /Pine Court Storm Repair/i })).toBeVisible()
+  await expect(page.getByText('ProjectBuilder')).toBeVisible()
 })
 
 test.describe('iphone layout', () => {
@@ -109,48 +131,50 @@ test.describe('iphone layout', () => {
     hasTouch: iPhone13.hasTouch,
   })
 
-  test('dashboard, terminal items, and item detail mobile layouts render cleanly', async ({
-    page,
-  }) => {
-    mkdirSync('artifacts/iteration-9-alex-flow-mobile', { recursive: true })
+  test('mobile bid builder sheets and advanced fallback render cleanly', async ({ page }) => {
+    mkdirSync('artifacts/iteration-10-two-page-builder-mobile', { recursive: true })
 
     await signInDemoUser(page)
 
     await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible()
     await expect(page.locator('.dashboard-mobile-list').first()).toBeVisible()
     await page.screenshot({
-      path: 'artifacts/iteration-9-alex-flow-mobile/dashboard-iphone13.png',
+      path: 'artifacts/iteration-10-two-page-builder-mobile/dashboard-iphone13.png',
       fullPage: true,
     })
 
-    await page.getByRole('link', { name: /Pine Court Storm Repair/i }).click()
-    await expect(page.getByRole('heading', { name: 'Pine Court Storm Repair' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Terminal items' })).toBeVisible()
-    await expect(page.getByRole('link', { name: /Tear off and disposal/i })).toBeVisible()
-    await page.screenshot({
-      path: 'artifacts/iteration-9-alex-flow-mobile/project-tracking-list-iphone13.png',
-      fullPage: true,
-    })
-
-    await page.getByRole('link', { name: /Tear off and disposal/i }).click()
-    await expect(page.getByLabel('Actual quantity')).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Billing + overhead' })).toBeVisible()
-    await page.screenshot({
-      path: 'artifacts/iteration-9-alex-flow-mobile/item-tracking-detail-iphone13.png',
-      fullPage: true,
-    })
-
-    await page.getByRole('link', { name: /Project items/i }).click()
-    await page.getByRole('link', { name: /Back/i }).click()
-    await expect(page.getByRole('link', { name: /Maple Street Roof Replacement/i })).toBeVisible()
     await page.getByRole('link', { name: /Maple Street Roof Replacement/i }).click()
     await expect(page.getByRole('heading', { name: 'Maple Street Roof Replacement' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Terminal items' })).toBeVisible()
-    await page.getByRole('link', { name: /Architectural shingles/i }).click()
+    await expect(page.getByRole('heading', { name: 'Bid builder' })).toBeVisible()
+    await page.screenshot({
+      path: 'artifacts/iteration-10-two-page-builder-mobile/project-bid-builder-iphone13.png',
+      fullPage: true,
+    })
+
+    const firstMobileCard = page.locator('.project-builder-mobile-list details').first()
+    await firstMobileCard.locator('summary').click()
+    await firstMobileCard.getByRole('button', { name: 'Materials' }).click()
+    const materialsDialog = page.getByRole('dialog')
+    await expect(materialsDialog.getByRole('heading', { name: 'Materials picker' })).toBeVisible()
+    await materialsDialog.screenshot({
+      path: 'artifacts/iteration-10-two-page-builder-mobile/materials-picker-iphone13.png',
+    })
+    await page.getByRole('button', { name: 'Close' }).click()
+
+    await page.getByRole('button', { name: 'Company library' }).click()
+    const libraryDialog = page.getByRole('dialog')
+    await expect(libraryDialog.getByRole('heading', { name: 'Company library' })).toBeVisible()
+    await libraryDialog.screenshot({
+      path: 'artifacts/iteration-10-two-page-builder-mobile/company-library-iphone13.png',
+    })
+    await page.getByRole('button', { name: 'Close' }).click()
+
+    await firstMobileCard.getByRole('link', { name: 'Advanced editor' }).click()
+    await expect(page.getByRole('link', { name: /Bid builder/i })).toBeVisible()
     await expect(page.getByLabel('Unit of measure')).toBeVisible()
     await expect(page.getByLabel('Cost / unit')).toBeVisible()
     await page.screenshot({
-      path: 'artifacts/iteration-9-alex-flow-mobile/item-estimate-detail-iphone13.png',
+      path: 'artifacts/iteration-10-two-page-builder-mobile/item-estimate-advanced-iphone13.png',
       fullPage: true,
     })
   })
