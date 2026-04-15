@@ -252,10 +252,11 @@ export const DashboardPage = () => {
   return (
     <main className="app-screen app-screen-compact">
       <header className="topbar topbar-simple">
-        <div className="topbar-heading">
-          <p className="eyebrow">ProjectBuilder</p>
-          <h1>Projects</h1>
-          <p className="topbar-subtitle">Simple bid and job tracking workspace.</p>
+        <div className="app-brand-lockup">
+          <div aria-hidden="true" className="app-brand-mark">
+            PB
+          </div>
+          <h1>ProjectBuilder</h1>
         </div>
         <div className="topbar-actions">
           {organizations.length > 0 ? (
