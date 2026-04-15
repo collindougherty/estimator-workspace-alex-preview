@@ -34,7 +34,7 @@ const iPhone13 = devices['iPhone 13']
 
 const signInDemoUser = async (page: Page) => {
   await page.goto('/login')
-  await expect(page.getByText('ProjectBuilder')).toBeVisible()
+  await expect(page.getByText('ProfitBuilder')).toBeVisible()
   await page.getByLabel('Email').fill(demoEmail)
   await page.getByLabel('Password').fill(demoPassword)
   await page.getByRole('button', { name: 'Sign in' }).click()
@@ -45,9 +45,9 @@ test('dashboard, tracking fallback, and two-page bid builder render cleanly', as
 
   await signInDemoUser(page)
 
-  await expect(page.getByRole('heading', { name: 'ProjectBuilder' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'ProfitBuilder' })).toBeVisible()
   await expect(page.locator('.app-brand-mark')).toBeVisible()
-  await expect(page.getByText('ProjectBuilder')).toBeVisible()
+  await expect(page.getByText('ProfitBuilder')).toBeVisible()
   await expect(page.getByRole('link', { name: /Pine Court Storm Repair/i })).toBeVisible()
   await page.screenshot({
     path: 'artifacts/iteration-11-builder-layout/dashboard.png',
@@ -57,13 +57,15 @@ test('dashboard, tracking fallback, and two-page bid builder render cleanly', as
   await page.getByRole('link', { name: /Pine Court Storm Repair/i }).click()
   await expect(page.getByRole('heading', { name: 'Pine Court Storm Repair' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Terminal items' })).toBeVisible()
+  await expect(page.locator('.tracking-table')).toBeVisible()
   await page.screenshot({
     path: 'artifacts/iteration-11-builder-layout/project-tracking-list.png',
     fullPage: true,
   })
 
-  await page.getByRole('link', { name: /Tear off and disposal/i }).click()
+  await page.getByRole('link', { name: 'Advanced' }).first().click()
   await expect(page).toHaveURL(/\/projects\/.+\/items\//)
+  await expect(page.getByRole('heading', { name: 'Quantity + material' })).toBeVisible()
   await expect(page.getByLabel('Actual quantity')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Billing + overhead' })).toBeVisible()
   await page.screenshot({
@@ -117,11 +119,11 @@ test('dashboard, tracking fallback, and two-page bid builder render cleanly', as
   await expect(page.getByRole('heading', { name: 'Bid builder' })).toBeVisible()
 
   await page.getByRole('link', { name: /Back/i }).click()
-  await expect(page.getByRole('heading', { name: 'ProjectBuilder' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'ProfitBuilder' })).toBeVisible()
   await page.getByRole('button', { name: 'Sign out' }).click()
   await expect(page).toHaveURL(/\/login$/)
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
-  await expect(page.getByText('ProjectBuilder')).toBeVisible()
+  await expect(page.getByText('ProfitBuilder')).toBeVisible()
 })
 
 test.describe('iphone layout', () => {
@@ -138,7 +140,7 @@ test.describe('iphone layout', () => {
 
     await signInDemoUser(page)
 
-    await expect(page.getByRole('heading', { name: 'ProjectBuilder' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'ProfitBuilder' })).toBeVisible()
     await expect(page.locator('.app-brand-mark')).toBeVisible()
     await expect(page.locator('.dashboard-mobile-list').first()).toBeVisible()
     await page.screenshot({

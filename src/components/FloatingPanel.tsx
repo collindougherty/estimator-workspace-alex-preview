@@ -50,7 +50,7 @@ export const FloatingPanel = ({
       >
         <header className="floating-panel-header">
           <div className="floating-panel-copy">
-            <p className="eyebrow">ProjectBuilder</p>
+            <p className="eyebrow">ProfitBuilder</p>
             <h2>{title}</h2>
             {subtitle ? <p>{subtitle}</p> : null}
           </div>

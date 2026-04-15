@@ -452,7 +452,7 @@ export const createProposalPdf = ({
     })
 
   const projectName = getTextValue(project.name, 'Proposal')
-  const brandName = getTextValue(organizationName, 'ProjectBuilder')
+  const brandName = getTextValue(organizationName, 'ProfitBuilder')
   const customerName = getTextValue(project.customer_name, 'Client')
   const locationName = getTextValue(project.location, 'Location pending')
   const bidDue = project.bid_due_date ? formatDate(project.bid_due_date) : 'TBD'

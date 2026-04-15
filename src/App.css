@@ -974,6 +974,18 @@
   font-size: 1.05rem;
 }
 
+.tracking-table .estimate-column-total {
+  width: 156px;
+  min-width: 156px;
+}
+
+.tracking-row-link {
+  justify-self: end;
+  white-space: nowrap;
+  padding: 7px 10px;
+  font-size: 0.76rem;
+}
+
 .estimate-reference,
 .row-save-state {
   font-size: 0.78rem;
@@ -1281,110 +1293,6 @@
 
 .project-worksheet-header {
   align-items: center;
-}
-
-.project-item-list-stack {
-  display: grid;
-  gap: 18px;
-}
-
-.project-item-section {
-  display: grid;
-  gap: 12px;
-}
-
-.project-item-section-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 4px 4px 0;
-}
-
-.project-item-section-header h3 {
-  color: var(--text-h);
-  font-size: 1rem;
-}
-
-.project-item-section-summary {
-  display: grid;
-  justify-items: end;
-  gap: 4px;
-  text-align: right;
-}
-
-.project-item-section-summary strong {
-  color: var(--text-h);
-  font-size: 1.02rem;
-}
-
-.project-item-section-summary span,
-.project-item-card-note {
-  color: var(--muted);
-  font-size: 0.82rem;
-}
-
-.project-item-card-list {
-  display: grid;
-  gap: 12px;
-}
-
-.project-item-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.84);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
-  color: inherit;
-  text-decoration: none;
-}
-
-.project-item-card:hover {
-  border-color: var(--brand-border);
-  box-shadow:
-    0 18px 32px rgba(15, 23, 42, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.82);
-}
-
-.project-item-card-copy {
-  min-width: 0;
-  display: grid;
-  gap: 8px;
-}
-
-.project-item-card-tags {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.project-item-card-copy strong {
-  color: var(--text-h);
-  line-height: 1.35;
-}
-
-.project-item-card-summary {
-  display: grid;
-  justify-items: end;
-  gap: 4px;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.project-item-card-summary span,
-.project-item-card-summary small {
-  color: var(--muted);
-  font-size: 0.8rem;
-}
-
-.project-item-card-summary strong {
-  color: var(--text-h);
-  font-size: 1.04rem;
 }
 
 .floating-panel-backdrop {
@@ -2448,18 +2356,9 @@
     letter-spacing: -0.04em;
   }
 
-  .project-item-card,
-  .project-item-section-header,
   .item-detail-section-heading {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .project-item-card-summary,
-  .project-item-section-summary {
-    justify-items: start;
-    text-align: left;
-    white-space: normal;
   }
 
   .company-library-grid {

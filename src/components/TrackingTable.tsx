@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import { formatCurrency, formatNumber } from '../lib/formatters'
 import type { ProjectItemActualUpdate, ProjectItemMetric } from '../lib/models'
@@ -54,11 +55,13 @@ export const TrackingTable = ({
   items,
   isSaving,
   onSaveRow,
+  projectId,
   readOnly = false,
 }: {
   items: ProjectItemMetric[]
   isSaving: string | null
   onSaveRow: (itemId: string, patch: ProjectItemActualUpdate) => Promise<void>
+  projectId?: string
   readOnly?: boolean
 }) => {
   const [draftOverrides, setDraftOverrides] = useState<Record<string, TrackingDraft>>({})
@@ -240,6 +243,10 @@ export const TrackingTable = ({
             const key = item.project_estimate_item_id ?? item.item_code ?? ''
             const draft = drafts[key]
             const sectionTotal = sectionTotals.get(sectionKey)
+            const itemRoute =
+              projectId && item.project_estimate_item_id
+                ? '/projects/' + projectId + '/items/' + item.project_estimate_item_id
+                : null
 
             if (!draft) {
               return null
@@ -263,15 +270,15 @@ export const TrackingTable = ({
                 ) : null}
                 <tr>
                   <td className="scope-cell estimate-column-scope estimate-sticky estimate-sticky-scope">
-                    <div className="scope-editor scope-editor-readonly">
-                      <div className="scope-editor-top">
-                        <span className="scope-code-pill mono">{item.item_code}</span>
-                        <span className="scope-unit-pill">{item.unit}</span>
-                      </div>
-                      <strong>{item.item_name}</strong>
-                      <span className="scope-meta-line">
-                        {item.section_code} · {item.section_name}
-                      </span>
+                      <div className="scope-editor scope-editor-readonly">
+                        <div className="scope-editor-top">
+                          <span className="scope-code-pill mono">{item.item_code}</span>
+                          <span className="scope-unit-pill">{item.unit}</span>
+                        </div>
+                        <strong>{item.item_name}</strong>
+                        <span className="scope-meta-line">
+                          {item.section_code} · {item.section_name}
+                        </span>
                     </div>
                   </td>
                   <td className="estimate-column-bucket">
@@ -499,6 +506,11 @@ export const TrackingTable = ({
                         <span className={`row-save-state row-save-${rowSaveState[key] ?? 'saved'}`}>
                           {getSaveLabel(key)}
                         </span>
+                      ) : null}
+                      {itemRoute ? (
+                        <Link className="ghost-button tracking-row-link" to={itemRoute}>
+                          Advanced
+                        </Link>
                       ) : null}
                     </div>
                   </td>

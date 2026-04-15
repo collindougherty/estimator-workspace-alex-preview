@@ -256,7 +256,7 @@ export const DashboardPage = () => {
           <div aria-hidden="true" className="app-brand-mark">
             PB
           </div>
-          <h1>ProjectBuilder</h1>
+          <h1>ProfitBuilder</h1>
         </div>
         <div className="topbar-actions">
           {organizations.length > 0 ? (

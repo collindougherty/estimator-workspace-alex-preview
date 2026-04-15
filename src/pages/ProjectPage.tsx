@@ -6,6 +6,7 @@ import { FloatingPanel } from '../components/FloatingPanel'
 import { MetricCard } from '../components/MetricCard'
 import { ProjectEstimateBuilder } from '../components/ProjectEstimateBuilder'
 import { StatusBadge } from '../components/StatusBadge'
+import { TrackingTable } from '../components/TrackingTable'
 import {
   createOrganizationEmployeeLibraryItem,
   createOrganizationEquipmentLibraryItem,
@@ -19,6 +20,7 @@ import {
   fetchOrganizations,
   fetchProjectItemMetrics,
   fetchProjectSummary,
+  updateProjectActuals,
   updateProjectEstimateItem,
 } from '../lib/api'
 import { formatCurrency, formatDate } from '../lib/formatters'
@@ -29,18 +31,10 @@ import type {
   OrganizationEquipmentLibraryItem,
   OrganizationMaterialLibraryItem,
   ProjectEstimateItemUpdate,
+  ProjectItemActualUpdate,
   ProjectItemMetric,
   ProjectSummary,
 } from '../lib/models'
-
-type SectionGroup = {
-  actualTotal: number
-  estimatedTotal: number
-  items: ProjectItemMetric[]
-  key: string
-  sectionCode: string
-  sectionName: string
-}
 
 const filterTerminalItems = (items: ProjectItemMetric[]) => {
   const codes = items
@@ -56,35 +50,6 @@ const filterTerminalItems = (items: ProjectItemMetric[]) => {
 
     return !codes.some((candidate) => candidate !== code && candidate.startsWith(code + '.'))
   })
-}
-
-const buildSectionGroups = (items: ProjectItemMetric[]) => {
-  const groups = new Map<string, SectionGroup>()
-
-  for (const item of items) {
-    const sectionCode = item.section_code ?? '—'
-    const sectionName = item.section_name ?? 'Unassigned scope'
-    const key = sectionCode + ':' + sectionName
-    const existingGroup = groups.get(key)
-
-    if (!existingGroup) {
-      groups.set(key, {
-        actualTotal: item.actual_total_cost ?? 0,
-        estimatedTotal: item.estimated_total_cost ?? 0,
-        items: [item],
-        key,
-        sectionCode,
-        sectionName,
-      })
-      continue
-    }
-
-    existingGroup.items.push(item)
-    existingGroup.estimatedTotal += item.estimated_total_cost ?? 0
-    existingGroup.actualTotal += item.actual_total_cost ?? 0
-  }
-
-  return Array.from(groups.values())
 }
 
 export const ProjectPage = () => {
@@ -112,12 +77,14 @@ export const ProjectPage = () => {
     setMaterialLibrary(nextMaterials)
   }, [])
 
-  const loadProject = useCallback(async () => {
+  const loadProject = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!projectId) {
       return
     }
 
-    setIsLoading(true)
+    if (!silent) {
+      setIsLoading(true)
+    }
     setScreenError(null)
 
     try {
@@ -148,7 +115,9 @@ export const ProjectPage = () => {
         caughtError instanceof Error ? caughtError.message : 'Unable to load project'
       setScreenError(message)
     } finally {
-      setIsLoading(false)
+      if (!silent) {
+        setIsLoading(false)
+      }
     }
   }, [loadCompanyLibraries, projectId])
 
@@ -173,9 +142,9 @@ export const ProjectPage = () => {
   }, [project?.status])
 
   const terminalItems = useMemo(() => filterTerminalItems(items), [items])
-  const sectionGroups = useMemo(() => buildSectionGroups(terminalItems), [terminalItems])
   const projectProfit = (project?.estimated_total_cost ?? 0) - (project?.actual_total_cost ?? 0)
   const showEstimateBuilder = projectMode !== 'tracking'
+  const isReadOnly = project?.status === 'lost' || project?.status === 'archived'
   const estimateSummary = useMemo(
     () =>
       terminalItems.reduce(
@@ -331,6 +300,23 @@ export const ProjectPage = () => {
     }
   }
 
+  const handleSaveActualRow = async (
+    itemId: string,
+    patch: ProjectItemActualUpdate,
+  ) => {
+    setScreenError(null)
+
+    try {
+      await updateProjectActuals(itemId, patch)
+      await loadProject({ silent: true })
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof Error ? caughtError.message : 'Unable to save tracking item'
+      setScreenError(message)
+      throw caughtError
+    }
+  }
+
   return (
     <main className="app-screen app-screen-compact">
       <header className="project-header project-header-simple">
@@ -338,7 +324,7 @@ export const ProjectPage = () => {
           <Link className="back-link" to="/">
             ← Back
           </Link>
-          <p className="eyebrow">ProjectBuilder</p>
+          <p className="eyebrow">ProfitBuilder</p>
           <h1>{project?.name ?? (isLoading ? 'Loading project…' : 'Project not found')}</h1>
           <p className="project-meta-line">
             <span>{project?.customer_name ?? 'Customer pending'}</span>
@@ -466,7 +452,7 @@ export const ProjectPage = () => {
             <div>
               <h2>Terminal items</h2>
               <p className="panel-meta">
-                Tracking stays item-focused for now. Open a terminal WBS item to enter actual quantities, labor, equipment, and billing details.
+                Track active and completed jobs in the same table rhythm as the bid builder, with each scope still linking into the full item editor.
               </p>
             </div>
             <span className="section-count">{isLoading ? '—' : terminalItems.length}</span>
@@ -474,52 +460,16 @@ export const ProjectPage = () => {
 
           {isLoading ? (
             <div className="panel-empty">Loading terminal items…</div>
-          ) : sectionGroups.length === 0 ? (
+          ) : terminalItems.length === 0 ? (
             <div className="panel-empty">No terminal items yet.</div>
           ) : (
-            <div className="project-item-list-stack">
-              {sectionGroups.map((section) => (
-                <section className="project-item-section" key={section.key}>
-                  <div className="project-item-section-header">
-                    <div>
-                      <span className="eyebrow">{section.sectionCode}</span>
-                      <h3>{section.sectionName}</h3>
-                    </div>
-                    <div className="project-item-section-summary">
-                      <strong>{formatCurrency(section.actualTotal)}</strong>
-                      <span>Bid {formatCurrency(section.estimatedTotal)}</span>
-                    </div>
-                  </div>
-
-                  <div className="project-item-card-list">
-                    {section.items.map((item) => (
-                      <Link
-                        className="project-item-card"
-                        key={item.project_estimate_item_id}
-                        to={'/projects/' + projectId + '/items/' + item.project_estimate_item_id}
-                      >
-                        <div className="project-item-card-copy">
-                          <div className="project-item-card-tags">
-                            <span className="scope-code-pill mono">{item.item_code}</span>
-                            <span className="scope-unit-pill">{item.unit}</span>
-                            {!item.is_included ? <span className="worksheet-mobile-flag">Excluded</span> : null}
-                          </div>
-                          <strong>{item.item_name ?? 'Scope item'}</strong>
-                          <span className="project-item-card-note">
-                            Open item to enter actual quantities, labor, equipment, and billing.
-                          </span>
-                        </div>
-                        <div className="project-item-card-summary">
-                          <span>Actual</span>
-                          <strong>{formatCurrency(item.actual_total_cost)}</strong>
-                          <small>Bid {formatCurrency(item.estimated_total_cost)}</small>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
+            <TrackingTable
+              isSaving={null}
+              items={terminalItems}
+              onSaveRow={handleSaveActualRow}
+              projectId={projectId}
+              readOnly={isReadOnly}
+            />
           )}
         </article>
       )}
