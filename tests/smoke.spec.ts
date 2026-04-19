@@ -258,4 +258,25 @@ test.describe('iphone layout', () => {
     })
     await page.getByRole('button', { name: 'Close' }).click()
   })
+
+  test('mobile settings honor the project totals tracking preference', async ({ page }) => {
+    await signInDemoUser(page)
+    await setTrackingPreference(page, 'Project totals')
+
+    await page.goto('/')
+    await expect(page.locator('.dashboard-mobile-list').first()).toBeVisible()
+
+    const activeCard = page.locator('.dashboard-mobile-card').filter({ hasText: 'Pine Court Storm Repair' })
+    await activeCard.locator('summary').click()
+    await activeCard.getByRole('link', { name: 'Open project' }).click()
+
+    await expect(page.getByRole('heading', { name: 'Pine Court Storm Repair' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Project tracking' })).toBeVisible()
+    await expect(page.getByText('Project totals first')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Show task / WBS breakdown' })).toBeVisible()
+    await expect(page.locator('.tracking-table')).toHaveCount(0)
+
+    await page.getByRole('button', { name: 'Show task / WBS breakdown' }).click()
+    await expect(page.locator('.tracking-table')).toBeVisible()
+  })
 })
