@@ -38,6 +38,13 @@ const signInDemoUser = async (page: Page) => {
   await page.getByLabel('Email').fill(demoEmail)
   await page.getByLabel('Password').fill(demoPassword)
   await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.getByRole('heading', { name: 'ProfitBuilder' })).toBeVisible()
+}
+
+const setTrackingPreference = async (page: Page, preference: 'Project totals' | 'Task / WBS breakdown') => {
+  await page.goto('/settings')
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
+  await page.getByLabel(preference).check()
 }
 
 const openTrackingBucket = async (page: Page, bucket: 'Equipment' | 'Labor') => {
@@ -169,6 +176,22 @@ test('dashboard, tracking table, and two-page bid builder render cleanly', async
   await expect(page).toHaveURL(/\/login$/)
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
   await expect(page.getByText('ProfitBuilder')).toBeVisible()
+})
+
+test('settings can default active jobs to project totals first', async ({ page }) => {
+  await signInDemoUser(page)
+  await setTrackingPreference(page, 'Project totals')
+
+  await page.goto('/')
+  await expect(page.getByRole('link', { name: /Pine Court Storm Repair/i })).toBeVisible()
+  await page.getByRole('link', { name: /Pine Court Storm Repair/i }).click()
+  await expect(page.getByRole('heading', { name: 'Project tracking' })).toBeVisible()
+  await expect(page.getByText('Project totals first')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Show task / WBS breakdown' })).toBeVisible()
+  await expect(page.locator('.tracking-table')).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Show task / WBS breakdown' }).click()
+  await expect(page.locator('.tracking-table')).toBeVisible()
 })
 
 test.describe('iphone layout', () => {

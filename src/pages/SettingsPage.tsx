@@ -3,14 +3,17 @@ import { Link } from 'react-router-dom'
 
 import { WorkspaceMenu } from '../components/WorkspaceMenu'
 import { useAuth } from '../hooks/useAuth'
+import { useTrackingPreference } from '../hooks/useTrackingPreference'
 import { fetchOrganizations } from '../lib/api'
 import type { Organization } from '../lib/models'
+import { trackingPreferenceOptions } from '../lib/tracking-preferences'
 
 export const SettingsPage = () => {
   const { signOutUser, user } = useAuth()
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [screenError, setScreenError] = useState<string | null>(null)
+  const { setTrackingPreference, trackingPreference } = useTrackingPreference(user?.id)
 
   useEffect(() => {
     const loadOrganizations = async () => {
@@ -105,6 +108,51 @@ export const SettingsPage = () => {
                 <span>{activeOrganization?.slug ?? 'Not set'}</span>
               </div>
             </div>
+          </article>
+
+          <article className="panel panel-compact">
+            <div className="panel-heading panel-heading-compact">
+              <div>
+                <h2>Tracking defaults</h2>
+                <p className="panel-meta">
+                  Choose the simple default for labor and materials on active jobs.
+                </p>
+              </div>
+            </div>
+
+            <fieldset className="settings-choice-group">
+              <legend className="settings-choice-legend">Actuals tracking style</legend>
+              {trackingPreferenceOptions.map((option) => {
+                const isSelected = trackingPreference === option.value
+
+                return (
+                  <label
+                    className={
+                      'settings-choice-card' + (isSelected ? ' settings-choice-card-selected' : '')
+                    }
+                    key={option.value}
+                  >
+                    <div className="settings-choice-input">
+                      <input
+                        checked={isSelected}
+                        name="tracking-preference"
+                        onChange={() => setTrackingPreference(option.value)}
+                        type="radio"
+                        value={option.value}
+                      />
+                    </div>
+                    <div className="settings-choice-copy">
+                      <strong>{option.label}</strong>
+                      <span>{option.description}</span>
+                    </div>
+                  </label>
+                )
+              })}
+            </fieldset>
+
+            <p className="panel-meta">
+              Saved on this device for {user?.email ?? 'the signed-in user'}.
+            </p>
           </article>
         </section>
       )}

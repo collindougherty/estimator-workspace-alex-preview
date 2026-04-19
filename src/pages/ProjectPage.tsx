@@ -7,7 +7,9 @@ import { MetricCard } from '../components/MetricCard'
 import { ProjectEstimateBuilder } from '../components/ProjectEstimateBuilder'
 import { StatusBadge } from '../components/StatusBadge'
 import { TrackingTable } from '../components/TrackingTable'
+import { useAuth } from '../hooks/useAuth'
 import { useCompanyLibrary } from '../hooks/useCompanyLibrary'
+import { useTrackingPreference } from '../hooks/useTrackingPreference'
 import {
   createProjectScope,
   deleteProjectScope,
@@ -46,6 +48,7 @@ const filterTerminalItems = (items: ProjectItemMetric[]) => {
 
 export const ProjectPage = () => {
   const { projectId } = useParams()
+  const { user } = useAuth()
   const [project, setProject] = useState<ProjectSummary | null>(null)
   const [items, setItems] = useState<ProjectItemMetric[]>([])
   const [organizationName, setOrganizationName] = useState('')
@@ -54,6 +57,8 @@ export const ProjectPage = () => {
   const [scopeDeleteTarget, setScopeDeleteTarget] = useState<ProjectItemMetric | null>(null)
   const [screenError, setScreenError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isTrackingBreakdownOpen, setIsTrackingBreakdownOpen] = useState(true)
+  const { trackingPreference } = useTrackingPreference(user?.id)
   const {
     createEmployee: handleCreateEmployeeLibraryItem,
     createEquipment: handleCreateEquipmentLibraryItem,
@@ -110,6 +115,10 @@ export const ProjectPage = () => {
     void loadProject()
   }, [loadProject])
 
+  useEffect(() => {
+    setIsTrackingBreakdownOpen(trackingPreference !== 'project-totals')
+  }, [projectId, trackingPreference])
+
   const projectMode = useMemo(() => {
     if (!project?.status) {
       return 'estimate'
@@ -130,6 +139,7 @@ export const ProjectPage = () => {
   const projectProfit = (project?.estimated_total_cost ?? 0) - (project?.actual_total_cost ?? 0)
   const showEstimateBuilder = projectMode !== 'tracking'
   const isReadOnly = project?.status === 'lost' || project?.status === 'archived'
+  const prefersProjectTotals = projectMode === 'tracking' && trackingPreference === 'project-totals'
   const estimateSummary = useMemo(
     () =>
       terminalItems.reduce(
@@ -473,18 +483,45 @@ export const ProjectPage = () => {
         <article className="panel panel-large">
           <div className="panel-heading panel-heading-compact">
             <div>
-              <h2>Terminal items</h2>
+              <h2>{prefersProjectTotals ? 'Project tracking' : 'Terminal items'}</h2>
               <p className="panel-meta">
-                Track active and completed jobs in the same table rhythm as the bid builder, with each scope editable from the same bucket controls.
+                {prefersProjectTotals
+                  ? 'You prefer project totals for labor and materials. The summary cards above stay primary, and the task / WBS breakdown is there when you need extra detail.'
+                  : 'Track active and completed jobs in the same table rhythm as the bid builder, with each scope editable from the same bucket controls.'}
               </p>
             </div>
             <span className="section-count">{isLoading ? '—' : terminalItems.length}</span>
           </div>
 
+          {prefersProjectTotals ? (
+            <div className="project-tracking-preference-banner">
+              <div className="project-tracking-preference-copy">
+                <span className="eyebrow">Tracking default</span>
+                <strong>Project totals first</strong>
+                <p className="panel-meta">
+                  Keep labor and materials simple at the project level, then open the task / WBS
+                  breakdown only when you want scope-by-scope detail.
+                </p>
+              </div>
+              <button
+                className="secondary-button"
+                onClick={() => setIsTrackingBreakdownOpen((current) => !current)}
+                type="button"
+              >
+                {isTrackingBreakdownOpen ? 'Hide task / WBS breakdown' : 'Show task / WBS breakdown'}
+              </button>
+            </div>
+          ) : null}
+
           {isLoading ? (
             <div className="panel-empty">Loading terminal items…</div>
           ) : terminalItems.length === 0 ? (
             <div className="panel-empty">No terminal items yet.</div>
+          ) : prefersProjectTotals && !isTrackingBreakdownOpen ? (
+            <div className="panel-empty">
+              Task / WBS breakdown is hidden for this preference. Use the button above if you need
+              scope-level tracking.
+            </div>
           ) : (
             <TrackingTable
               employeeLibrary={employeeLibrary}
