@@ -251,6 +251,54 @@ export const InventoryPage = () => {
                 </tbody>
               </table>
             </div>
+
+            <div className="inventory-mobile-list">
+              {inventoryRows.map((row) => {
+                const needsReorder = row.available <= row.reorderPoint
+
+                return (
+                  <article className="inventory-mobile-card" key={`mobile-${row.item}`}>
+                    <div className="inventory-mobile-card-header">
+                      <div className="inventory-mobile-card-copy">
+                        <strong>{row.item}</strong>
+                        <span>
+                          {row.unit} · {formatCurrency(row.unitCost)} / unit
+                        </span>
+                      </div>
+                      <span
+                        className={
+                          'inventory-status-chip' +
+                          (needsReorder
+                            ? ' inventory-status-chip-warning'
+                            : ' inventory-status-chip-healthy')
+                        }
+                      >
+                        {needsReorder ? 'Reorder soon' : 'Healthy'}
+                      </span>
+                    </div>
+
+                    <div className="inventory-mobile-card-grid">
+                      <div className="inventory-mobile-card-metric">
+                        <span>On hand</span>
+                        <strong>{row.onHand}</strong>
+                      </div>
+                      <div className="inventory-mobile-card-metric">
+                        <span>Reserved</span>
+                        <strong>{row.reserved}</strong>
+                      </div>
+                      <div className="inventory-mobile-card-metric">
+                        <span>Available</span>
+                        <strong>{row.available}</strong>
+                      </div>
+                      <div className="inventory-mobile-card-metric">
+                        <span>Reorder at</span>
+                        <strong>{row.reorderPoint}</strong>
+                      </div>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
           </article>
         </section>
       )}

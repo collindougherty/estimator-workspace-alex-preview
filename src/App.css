@@ -2547,6 +2547,10 @@
   overflow-x: auto;
 }
 
+.inventory-mobile-list {
+  display: none;
+}
+
 .inventory-table th:nth-child(n + 2),
 .inventory-table td:nth-child(n + 2) {
   white-space: nowrap;
@@ -2570,6 +2574,54 @@
 .inventory-status-chip-warning {
   color: #9a3412;
   background: #ffedd5;
+}
+
+.inventory-mobile-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.84);
+}
+
+.inventory-mobile-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.inventory-mobile-card-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.inventory-mobile-card-copy strong,
+.inventory-mobile-card-metric strong {
+  color: var(--text-h);
+}
+
+.inventory-mobile-card-copy span,
+.inventory-mobile-card-metric span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.inventory-mobile-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.inventory-mobile-card-metric {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(241, 245, 249, 0.7);
 }
 
 .company-library-inline-form-labor {
@@ -3083,6 +3135,15 @@
   .resource-sheet-search {
     position: static;
   }
+
+  .inventory-table-shell {
+    display: none;
+  }
+
+  .inventory-mobile-list {
+    display: grid;
+    gap: 12px;
+  }
 }
 
 @media (max-width: 600px) {
@@ -3196,6 +3257,15 @@
   .project-create-scope-option {
     grid-template-columns: 18px minmax(0, 1fr);
     padding: 10px 12px;
+  }
+
+  .inventory-mobile-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .inventory-mobile-card-grid {
+    grid-template-columns: 1fr;
   }
 
   .settings-choice-card,

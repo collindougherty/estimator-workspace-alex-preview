@@ -279,4 +279,20 @@ test.describe('iphone layout', () => {
     await page.getByRole('button', { name: 'Show task / WBS breakdown' }).click()
     await expect(page.locator('.tracking-table')).toBeVisible()
   })
+
+  test('mobile inventory page renders as cards', async ({ page }) => {
+    mkdirSync('artifacts/iteration-11-inventory-mobile', { recursive: true })
+
+    await signInDemoUser(page)
+    await page.goto('/inventory')
+
+    await expect(page.getByRole('heading', { name: 'Inventory' })).toBeVisible()
+    await expect(page.locator('.inventory-mobile-list')).toBeVisible()
+    await expect(page.locator('.inventory-mobile-card').first()).toBeVisible()
+    await expect(page.locator('.inventory-table-shell')).toBeHidden()
+    await page.screenshot({
+      path: 'artifacts/iteration-11-inventory-mobile/inventory-iphone13.png',
+      fullPage: true,
+    })
+  })
 })
