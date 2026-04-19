@@ -211,17 +211,21 @@ test.describe('iphone layout', () => {
     await expect(page.getByRole('heading', { name: 'ProfitBuilder' })).toBeVisible()
     await expect(page.locator('.app-brand-mark')).toBeVisible()
     await expect(page.locator('.dashboard-mobile-list').first()).toBeVisible()
-    await expect(page.locator('.dashboard-mobile-card .status-badge')).toHaveCount(0)
-    await expect(page.locator('.dashboard-mobile-active-tracking')).toHaveCount(1)
-    await expect(page.locator('.dashboard-mobile-active-tracking')).toContainText('Budget')
-    await expect(page.locator('.dashboard-mobile-active-tracking')).toContainText('Actual')
-    await expect(page.locator('.dashboard-mobile-active-tracking')).toContainText('Spent')
+    await expect(page.locator('.dashboard-mobile-card-summary').first()).toBeVisible()
+    const activeCard = page.locator('.dashboard-mobile-card').filter({ hasText: 'Pine Court Storm Repair' })
+    await activeCard.locator('summary').click()
+    await expect(activeCard.locator('.dashboard-mobile-active-tracking')).toBeVisible()
+    await expect(activeCard.locator('.dashboard-mobile-active-tracking')).toContainText('Budget')
+    await expect(activeCard.locator('.dashboard-mobile-active-tracking')).toContainText('Actual')
+    await expect(activeCard.locator('.dashboard-mobile-active-tracking')).toContainText('Spent')
     await page.screenshot({
       path: 'artifacts/iteration-11-builder-layout-mobile/dashboard-iphone13.png',
       fullPage: true,
     })
 
-    await page.getByRole('link', { name: /Maple Street Roof Replacement/i }).click()
+    const bidCard = page.locator('.dashboard-mobile-card').filter({ hasText: 'Maple Street Roof Replacement' })
+    await bidCard.locator('summary').click()
+    await bidCard.getByRole('link', { name: 'Open project' }).click()
     await expect(page.getByRole('heading', { name: 'Maple Street Roof Replacement' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Bid builder' })).toBeVisible()
     await expect(page.locator('.project-builder-mobile-list')).toBeVisible()
