@@ -186,7 +186,7 @@ test('settings can default active jobs to project totals first', async ({ page }
   await expect(page.getByRole('link', { name: /Pine Court Storm Repair/i })).toBeVisible()
   await page.getByRole('link', { name: /Pine Court Storm Repair/i }).click()
   await expect(page.getByRole('heading', { name: 'Project tracking' })).toBeVisible()
-  await expect(page.getByText('Project totals first')).toBeVisible()
+  await expect(page.locator('.project-tracking-preference-banner strong')).toHaveText('Project totals first')
   await expect(page.getByRole('button', { name: 'Show task / WBS breakdown' })).toBeVisible()
   await expect(page.locator('.tracking-table')).toHaveCount(0)
 
@@ -228,7 +228,9 @@ test.describe('iphone layout', () => {
     await bidCard.getByRole('link', { name: 'Open project' }).click()
     await expect(page.getByRole('heading', { name: 'Maple Street Roof Replacement' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Bid builder' })).toBeVisible()
+    await expect(page.locator('.project-mobile-panel-pills')).toBeVisible()
     await expect(page.locator('.project-builder-mobile-list')).toBeVisible()
+    await expect(page.locator('.project-builder-section').first()).toBeVisible()
     await expect(page.getByRole('button', { name: 'New section' })).toBeVisible()
     await page.screenshot({
       path: 'artifacts/iteration-11-builder-layout-mobile/project-bid-builder-iphone13.png',
@@ -260,6 +262,8 @@ test.describe('iphone layout', () => {
   })
 
   test('mobile settings honor the project totals tracking preference', async ({ page }) => {
+    mkdirSync('artifacts/iteration-11-tracking-mobile', { recursive: true })
+
     await signInDemoUser(page)
     await setTrackingPreference(page, 'Project totals')
 
@@ -272,12 +276,19 @@ test.describe('iphone layout', () => {
 
     await expect(page.getByRole('heading', { name: 'Pine Court Storm Repair' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Project tracking' })).toBeVisible()
-    await expect(page.getByText('Project totals first')).toBeVisible()
+    await expect(page.locator('.project-tracking-preference-banner strong')).toHaveText('Project totals first')
     await expect(page.getByRole('button', { name: 'Show task / WBS breakdown' })).toBeVisible()
     await expect(page.locator('.tracking-table')).toHaveCount(0)
 
     await page.getByRole('button', { name: 'Show task / WBS breakdown' }).click()
-    await expect(page.locator('.tracking-table')).toBeVisible()
+    await expect(page.locator('.project-mobile-panel-pills')).toBeVisible()
+    await expect(page.locator('.worksheet-mobile-shell')).toBeVisible()
+    await expect(page.locator('.worksheet-desktop-shell')).toBeHidden()
+    await expect(page.locator('.worksheet-mobile-card').first()).toBeVisible()
+    await page.screenshot({
+      path: 'artifacts/iteration-11-tracking-mobile/project-tracking-iphone13.png',
+      fullPage: true,
+    })
   })
 
   test('mobile inventory page renders as cards', async ({ page }) => {

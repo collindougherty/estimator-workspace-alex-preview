@@ -1824,6 +1824,10 @@
   gap: 14px;
 }
 
+.project-mobile-panel-pills {
+  display: none;
+}
+
 .project-builder-section-header {
   display: flex;
   align-items: end;
@@ -3332,6 +3336,10 @@
     margin-bottom: 12px;
   }
 
+  .panel-heading-compact {
+    gap: 10px;
+  }
+
   .section-count {
     min-width: 30px;
     height: 30px;
@@ -3367,6 +3375,13 @@
   .worksheet-mobile-shell {
     display: grid;
     gap: 12px;
+  }
+
+  .project-mobile-panel-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
   }
 
   .project-worksheet-header {
@@ -3504,6 +3519,32 @@
     gap: 12px;
   }
 
+  .project-builder-section {
+    gap: 12px;
+    padding: 14px;
+    border-radius: 20px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(248, 250, 252, 0.58);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.76);
+  }
+
+  .project-builder-section-header {
+    gap: 12px;
+    padding: 0 0 10px;
+  }
+
+  .project-builder-section-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .project-builder-section-actions .scope-picker {
+    justify-self: end;
+  }
+
   .resource-sheet-option {
     flex-direction: column;
     gap: 10px;
@@ -3540,6 +3581,11 @@
 
   .worksheet-mobile-card-body {
     padding: 0 15px 15px;
+  }
+
+  .project-builder-mobile-summary-line {
+    font-size: 0.74rem;
+    line-height: 1.5;
   }
 
   .stack-form input,

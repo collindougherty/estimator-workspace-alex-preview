@@ -43,6 +43,7 @@ import {
   LaborBreakdownFields,
   MaterialBreakdownFields,
 } from './ResourceBreakdownFields'
+import { ProjectMobileWorksheet } from './ProjectMobileWorksheet'
 
 type RowSaveState = 'saved' | 'pending' | 'saving' | 'error'
 type BucketKey = 'equipment' | 'labor' | 'materials' | 'markup' | 'subcontract'
@@ -906,86 +907,98 @@ export const TrackingTable = ({
 
   return (
     <div className="table-shell">
-      <table className="estimate-table tracking-table">
-        <thead>
-          <tr>
-            <th className="estimate-column-scope estimate-sticky estimate-sticky-scope">Scope</th>
-            <th className="estimate-column-bucket">Labor</th>
-            <th className="estimate-column-bucket">Materials</th>
-            <th className="estimate-column-bucket">Equipment</th>
-            <th className="estimate-column-bucket">Subs</th>
-            <th className="estimate-column-bucket">O/H + Profit</th>
-            <th className="estimate-column-total">Actual</th>
-          </tr>
-        </thead>
-        <tbody>
-          {displayRows.map(({ item, sectionKey, showSectionHeading }) => {
-            const key = item.project_estimate_item_id ?? item.item_code ?? ''
-            const derived = derivedByKey[key]
-            const sectionTotal = sectionTotals.get(sectionKey)
-            if (!derived) {
-              return null
-            }
+      <div className="worksheet-mobile-shell">
+        <ProjectMobileWorksheet
+          isSaving={isSaving}
+          items={items}
+          mode="tracking"
+          onSaveEstimateRow={async () => undefined}
+          onSaveTrackingRow={onSaveRow}
+          readOnly={readOnly}
+        />
+      </div>
+      <div className="worksheet-desktop-shell">
+        <table className="estimate-table tracking-table">
+          <thead>
+            <tr>
+              <th className="estimate-column-scope estimate-sticky estimate-sticky-scope">Scope</th>
+              <th className="estimate-column-bucket">Labor</th>
+              <th className="estimate-column-bucket">Materials</th>
+              <th className="estimate-column-bucket">Equipment</th>
+              <th className="estimate-column-bucket">Subs</th>
+              <th className="estimate-column-bucket">O/H + Profit</th>
+              <th className="estimate-column-total">Actual</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayRows.map(({ item, sectionKey, showSectionHeading }) => {
+              const key = item.project_estimate_item_id ?? item.item_code ?? ''
+              const derived = derivedByKey[key]
+              const sectionTotal = sectionTotals.get(sectionKey)
+              if (!derived) {
+                return null
+              }
 
-            return (
-              <Fragment key={key}>
-                {showSectionHeading ? (
-                  <tr className="estimate-section-row" key={`${sectionKey}-heading`}>
-                    <td colSpan={7}>
-                      <div>
-                        <span>
-                          {item.section_code} · {item.section_name}
+              return (
+                <Fragment key={key}>
+                  {showSectionHeading ? (
+                    <tr className="estimate-section-row" key={`${sectionKey}-heading`}>
+                      <td colSpan={7}>
+                        <div>
+                          <span>
+                            {item.section_code} · {item.section_name}
+                          </span>
+                          <strong>
+                            {formatCurrency(sectionTotal?.actual)} actual · {formatCurrency(sectionTotal?.bid)} bid
+                          </strong>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : null}
+                  <tr>
+                    <td className="scope-cell estimate-column-scope estimate-sticky estimate-sticky-scope">
+                      <div className="scope-editor scope-editor-readonly">
+                        <div className="scope-editor-top">
+                          <span className="scope-code-pill mono">{item.item_code}</span>
+                        </div>
+                        <strong>{item.item_name}</strong>
+                      </div>
+                    </td>
+                    <td className="estimate-column-bucket">
+                      {renderBucketButton('labor', key, item, derived)}
+                    </td>
+                    <td className="estimate-column-bucket">
+                      {renderBucketButton('materials', key, item, derived)}
+                    </td>
+                    <td className="estimate-column-bucket">
+                      {renderBucketButton('equipment', key, item, derived)}
+                    </td>
+                    <td className="estimate-column-bucket">
+                      {renderBucketButton('subcontract', key, item, derived)}
+                    </td>
+                    <td className="estimate-column-bucket">
+                      {renderBucketButton('markup', key, item, derived)}
+                    </td>
+                    <td className="estimate-column-total estimate-total-cell">
+                      <div className="estimate-total-stack">
+                        <strong>{formatCurrency(derived.actual_total_cost)}</strong>
+                        <span className="estimate-reference">
+                          Bid {formatCurrency(item.estimated_total_cost)}
                         </span>
-                        <strong>
-                          {formatCurrency(sectionTotal?.actual)} actual · {formatCurrency(sectionTotal?.bid)} bid
-                        </strong>
+                        {!readOnly ? (
+                          <span className={`row-save-state row-save-${rowSaveState[key] ?? 'saved'}`}>
+                            {getSaveLabel(key)}
+                          </span>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
-                ) : null}
-                <tr>
-                  <td className="scope-cell estimate-column-scope estimate-sticky estimate-sticky-scope">
-                    <div className="scope-editor scope-editor-readonly">
-                      <div className="scope-editor-top">
-                        <span className="scope-code-pill mono">{item.item_code}</span>
-                      </div>
-                      <strong>{item.item_name}</strong>
-                    </div>
-                  </td>
-                  <td className="estimate-column-bucket">
-                    {renderBucketButton('labor', key, item, derived)}
-                  </td>
-                  <td className="estimate-column-bucket">
-                    {renderBucketButton('materials', key, item, derived)}
-                  </td>
-                  <td className="estimate-column-bucket">
-                    {renderBucketButton('equipment', key, item, derived)}
-                  </td>
-                  <td className="estimate-column-bucket">
-                    {renderBucketButton('subcontract', key, item, derived)}
-                  </td>
-                  <td className="estimate-column-bucket">
-                    {renderBucketButton('markup', key, item, derived)}
-                  </td>
-                  <td className="estimate-column-total estimate-total-cell">
-                    <div className="estimate-total-stack">
-                      <strong>{formatCurrency(derived.actual_total_cost)}</strong>
-                      <span className="estimate-reference">
-                        Bid {formatCurrency(item.estimated_total_cost)}
-                      </span>
-                      {!readOnly ? (
-                        <span className={`row-save-state row-save-${rowSaveState[key] ?? 'saved'}`}>
-                          {getSaveLabel(key)}
-                        </span>
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
-              </Fragment>
-            )
-          })}
-        </tbody>
-      </table>
+                </Fragment>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
       {openBucket ? (
         <TrackingBucketPanel
           draft={drafts[openBucket.itemId]}

@@ -451,12 +451,16 @@ export const ProjectPage = () => {
       {showEstimateBuilder ? (
         <article className="panel panel-large">
           <div className="panel-heading panel-heading-compact">
-              <div>
-                <h2>Bid builder</h2>
-                <p className="panel-meta">
-                  Keep the bid in the table. Open Labor, Materials, or Equipment to pull company rates without leaving the page.
-                </p>
+            <div>
+              <h2>Bid builder</h2>
+              <p className="panel-meta">
+                Keep the bid in the table. Open Labor, Materials, or Equipment to pull company rates without leaving the page.
+              </p>
+              <div className="project-mobile-panel-pills" aria-hidden="true">
+                <span className="dashboard-mobile-chip">Tap a scope to edit</span>
+                <span className="dashboard-mobile-chip">{terminalItems.length} scopes</span>
               </div>
+            </div>
             <span className="section-count">{isLoading ? '—' : terminalItems.length}</span>
           </div>
 
@@ -489,6 +493,12 @@ export const ProjectPage = () => {
                   ? 'You prefer project totals for labor and materials. The summary cards above stay primary, and the task / WBS breakdown is there when you need extra detail.'
                   : 'Track active and completed jobs in the same table rhythm as the bid builder, with each scope editable from the same bucket controls.'}
               </p>
+              <div className="project-mobile-panel-pills" aria-hidden="true">
+                <span className="dashboard-mobile-chip">
+                  {prefersProjectTotals ? 'Project totals first' : 'Tap a scope to track'}
+                </span>
+                <span className="dashboard-mobile-chip">{terminalItems.length} scopes</span>
+              </div>
             </div>
             <span className="section-count">{isLoading ? '—' : terminalItems.length}</span>
           </div>
