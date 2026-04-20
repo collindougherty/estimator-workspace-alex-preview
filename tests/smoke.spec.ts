@@ -31,6 +31,8 @@ const readLocalEnv = () => {
 
 const { demoEmail, demoPassword } = readLocalEnv()
 const iPhone13 = devices['iPhone 13']
+const formatUsd = (value: number) =>
+  new Intl.NumberFormat('en-US', { currency: 'USD', style: 'currency' }).format(value)
 
 const signInDemoUser = async (page: Page) => {
   await page.goto('/login')
@@ -187,7 +189,22 @@ test('settings can default active jobs to project totals first', async ({ page }
   await page.getByRole('link', { name: /Pine Court Storm Repair/i }).click()
   await expect(page.getByRole('heading', { name: 'Project tracking' })).toBeVisible()
   await expect(page.locator('.project-tracking-preference-banner strong')).toHaveText('Project totals first')
+  const totalsTracker = page.locator('.project-totals-tracker')
+  await expect(totalsTracker).toBeVisible()
   await expect(page.getByRole('button', { name: 'Show task / WBS breakdown' })).toBeVisible()
+  const invoiceField = page.getByLabel('Invoice amount')
+  const originalInvoice = await invoiceField.inputValue()
+  const updatedInvoice = String(Number(originalInvoice || '0') + 25)
+  await invoiceField.fill(updatedInvoice)
+  await totalsTracker.getByRole('button', { name: 'Save project totals' }).click()
+  await expect(page.locator('.metric-card').filter({ hasText: 'Profit' })).toContainText(
+    `Invoice ${formatUsd(Number(updatedInvoice)).replace('.00', '')}`,
+  )
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Project tracking' })).toBeVisible()
+  await expect(page.getByLabel('Invoice amount')).toHaveValue(updatedInvoice)
+  await page.getByLabel('Invoice amount').fill(originalInvoice)
+  await page.getByRole('button', { name: 'Save project totals' }).click()
   await expect(page.locator('.tracking-table')).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Show task / WBS breakdown' }).click()
@@ -277,6 +294,8 @@ test.describe('iphone layout', () => {
     await expect(page.getByRole('heading', { name: 'Pine Court Storm Repair' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Project tracking' })).toBeVisible()
     await expect(page.locator('.project-tracking-preference-banner strong')).toHaveText('Project totals first')
+    await expect(page.locator('.project-totals-tracker')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Save project totals' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Show task / WBS breakdown' })).toBeVisible()
     await expect(page.locator('.tracking-table')).toHaveCount(0)
 

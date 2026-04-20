@@ -2323,6 +2323,11 @@
   background: rgba(248, 250, 252, 0.72);
 }
 
+.project-totals-tracker {
+  border-color: rgba(134, 239, 172, 0.68);
+  background: linear-gradient(180deg, rgba(240, 253, 244, 0.92) 0%, rgba(248, 250, 252, 0.84) 100%);
+}
+
 .item-detail-section-heading {
   display: flex;
   align-items: flex-start;

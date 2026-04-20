@@ -20,6 +20,7 @@ import {
   updateProjectEstimateItem,
 } from '../lib/api'
 import { formatCurrency, formatDate } from '../lib/formatters'
+import { calculateActualOverheadCost, parseNumericInput, roundCurrencyValue } from '../lib/item-detail'
 import { exportProposalPdf } from '../lib/proposal-pdf'
 import { applyEstimatePatchToProjectItemMetric } from '../lib/project-estimate-builder'
 import { getNextItemCode, getNextSectionCode, sortScopeItems } from '../lib/scope-hierarchy'
@@ -29,6 +30,17 @@ import type {
   ProjectItemMetric,
   ProjectSummary,
 } from '../lib/models'
+
+type ProjectTotalsDraft = {
+  actualEquipmentCost: string
+  actualEquipmentDays: string
+  actualLaborCost: string
+  actualLaborHours: string
+  actualMaterialCost: string
+  actualSubcontractCost: string
+  invoiceAmount: string
+  percentComplete: string
+}
 
 const filterTerminalItems = (items: ProjectItemMetric[]) => {
   const codes = items
@@ -46,6 +58,85 @@ const filterTerminalItems = (items: ProjectItemMetric[]) => {
   })
 }
 
+const toProjectTotalsDraft = (items: ProjectItemMetric[]): ProjectTotalsDraft => {
+  const totals = items.reduce(
+    (summary, item) => {
+      summary.actualEquipmentCost += item.actual_equipment_cost ?? 0
+      summary.actualEquipmentDays += item.actual_equipment_days ?? 0
+      summary.actualLaborCost += item.actual_labor_cost ?? 0
+      summary.actualLaborHours += item.actual_labor_hours ?? 0
+      summary.actualMaterialCost += item.actual_material_cost ?? 0
+      summary.actualSubcontractCost += item.actual_subcontract_cost ?? 0
+      summary.invoiceAmount += item.invoice_amount ?? 0
+      summary.earnedValue += item.earned_value_amount ?? 0
+      summary.estimatedTotal += item.estimated_total_cost ?? 0
+      return summary
+    },
+    {
+      actualEquipmentCost: 0,
+      actualEquipmentDays: 0,
+      actualLaborCost: 0,
+      actualLaborHours: 0,
+      actualMaterialCost: 0,
+      actualSubcontractCost: 0,
+      earnedValue: 0,
+      estimatedTotal: 0,
+      invoiceAmount: 0,
+    },
+  )
+
+  return {
+    actualEquipmentCost: String(totals.actualEquipmentCost),
+    actualEquipmentDays: String(totals.actualEquipmentDays),
+    actualLaborCost: String(totals.actualLaborCost),
+    actualLaborHours: String(totals.actualLaborHours),
+    actualMaterialCost: String(totals.actualMaterialCost),
+    actualSubcontractCost: String(totals.actualSubcontractCost),
+    invoiceAmount: String(totals.invoiceAmount),
+    percentComplete: String(
+      totals.estimatedTotal > 0
+        ? roundCurrencyValue((totals.earnedValue / totals.estimatedTotal) * 100)
+        : 0,
+    ),
+  }
+}
+
+const distributeTotal = (
+  total: number,
+  items: ProjectItemMetric[],
+  getWeight: (item: ProjectItemMetric) => number,
+) => {
+  const values = new Map<string, number>()
+
+  if (items.length === 0) {
+    return values
+  }
+
+  const rawWeights = items.map((item) => Math.max(0, getWeight(item)))
+  const weightSum = rawWeights.reduce((sum, weight) => sum + weight, 0)
+  const weights = weightSum > 0 ? rawWeights : items.map(() => 1)
+  const normalizedWeightSum = weights.reduce((sum, weight) => sum + weight, 0)
+  let runningTotal = 0
+
+  items.forEach((item, index) => {
+    const itemId = item.project_estimate_item_id
+
+    if (!itemId) {
+      return
+    }
+
+    const value =
+      index === items.length - 1
+        ? roundCurrencyValue(total - runningTotal)
+        : roundCurrencyValue(total * (weights[index] / normalizedWeightSum))
+
+    runningTotal += value
+    values.set(itemId, value)
+  })
+
+  return values
+}
+
 export const ProjectPage = () => {
   const { projectId } = useParams()
   const { user } = useAuth()
@@ -57,6 +148,10 @@ export const ProjectPage = () => {
   const [scopeDeleteTarget, setScopeDeleteTarget] = useState<ProjectItemMetric | null>(null)
   const [screenError, setScreenError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isProjectTotalsSaving, setIsProjectTotalsSaving] = useState(false)
+  const [projectTotalsDraft, setProjectTotalsDraft] = useState<ProjectTotalsDraft>(() =>
+    toProjectTotalsDraft([]),
+  )
   const [isTrackingBreakdownOpen, setIsTrackingBreakdownOpen] = useState(true)
   const { trackingPreference } = useTrackingPreference(user?.id)
   const {
@@ -140,6 +235,10 @@ export const ProjectPage = () => {
   const showEstimateBuilder = projectMode !== 'tracking'
   const isReadOnly = project?.status === 'lost' || project?.status === 'archived'
   const prefersProjectTotals = projectMode === 'tracking' && trackingPreference === 'project-totals'
+  const includedTrackingItems = useMemo(
+    () => terminalItems.filter((item) => item.is_included && item.project_estimate_item_id),
+    [terminalItems],
+  )
   const estimateSummary = useMemo(
     () =>
       terminalItems.reduce(
@@ -171,6 +270,37 @@ export const ProjectPage = () => {
       ),
     [terminalItems],
   )
+  const projectTotalsPreview = useMemo(() => {
+    const actualLaborCost = parseNumericInput(projectTotalsDraft.actualLaborCost)
+    const actualMaterialCost = parseNumericInput(projectTotalsDraft.actualMaterialCost)
+    const actualEquipmentCost = parseNumericInput(projectTotalsDraft.actualEquipmentCost)
+    const actualSubcontractCost = parseNumericInput(projectTotalsDraft.actualSubcontractCost)
+    const directCost = roundCurrencyValue(
+      actualLaborCost + actualMaterialCost + actualEquipmentCost + actualSubcontractCost,
+    )
+    const totalEstimate = includedTrackingItems.reduce(
+      (sum, item) => sum + (item.estimated_total_cost ?? 0),
+      0,
+    )
+    const overheadCost = roundCurrencyValue(
+      includedTrackingItems.reduce((sum, item) => {
+        const itemEstimate = item.estimated_total_cost ?? 0
+        const share =
+          totalEstimate > 0 ? itemEstimate / totalEstimate : 1 / Math.max(includedTrackingItems.length, 1)
+        return sum + calculateActualOverheadCost(directCost * share, item.overhead_percent)
+      }, 0),
+    )
+
+    return {
+      directCost,
+      overheadCost,
+      totalCost: roundCurrencyValue(directCost + overheadCost),
+    }
+  }, [includedTrackingItems, projectTotalsDraft])
+
+  useEffect(() => {
+    setProjectTotalsDraft(toProjectTotalsDraft(includedTrackingItems))
+  }, [includedTrackingItems, projectId])
 
   if (!projectId) {
     return <Navigate replace to="/" />
@@ -227,6 +357,75 @@ export const ProjectPage = () => {
         caughtError instanceof Error ? caughtError.message : 'Unable to save tracking item'
       setScreenError(message)
       throw caughtError
+    }
+  }
+
+  const handleSaveProjectTotals = async () => {
+    if (includedTrackingItems.length === 0) {
+      setScreenError('Add at least one included scope before saving project totals.')
+      return
+    }
+
+    setIsProjectTotalsSaving(true)
+    setScreenError(null)
+
+    const actualLaborHours = parseNumericInput(projectTotalsDraft.actualLaborHours)
+    const actualLaborCost = parseNumericInput(projectTotalsDraft.actualLaborCost)
+    const actualMaterialCost = parseNumericInput(projectTotalsDraft.actualMaterialCost)
+    const actualEquipmentDays = parseNumericInput(projectTotalsDraft.actualEquipmentDays)
+    const actualEquipmentCost = parseNumericInput(projectTotalsDraft.actualEquipmentCost)
+    const actualSubcontractCost = parseNumericInput(projectTotalsDraft.actualSubcontractCost)
+    const invoiceAmount = parseNumericInput(projectTotalsDraft.invoiceAmount)
+    const percentComplete = parseNumericInput(projectTotalsDraft.percentComplete)
+
+    const laborHourByItem = distributeTotal(actualLaborHours, includedTrackingItems, (item) => item.labor_hours ?? 0)
+    const laborCostByItem = distributeTotal(actualLaborCost, includedTrackingItems, (item) => item.estimated_labor_cost ?? 0)
+    const materialCostByItem = distributeTotal(actualMaterialCost, includedTrackingItems, (item) => item.material_cost ?? 0)
+    const equipmentDaysByItem = distributeTotal(actualEquipmentDays, includedTrackingItems, (item) => item.equipment_days ?? 0)
+    const equipmentCostByItem = distributeTotal(actualEquipmentCost, includedTrackingItems, (item) => item.estimated_equipment_cost ?? 0)
+    const subcontractCostByItem = distributeTotal(actualSubcontractCost, includedTrackingItems, (item) => item.subcontract_cost ?? 0)
+    const invoiceAmountByItem = distributeTotal(invoiceAmount, includedTrackingItems, (item) => item.estimated_total_cost ?? 0)
+
+    try {
+      await Promise.all(
+        includedTrackingItems.map((item) => {
+          const itemId = item.project_estimate_item_id
+
+          if (!itemId) {
+            return Promise.resolve()
+          }
+
+          const directCost = roundCurrencyValue(
+            (laborCostByItem.get(itemId) ?? 0) +
+              (materialCostByItem.get(itemId) ?? 0) +
+              (equipmentCostByItem.get(itemId) ?? 0) +
+              (subcontractCostByItem.get(itemId) ?? 0),
+          )
+
+          return updateProjectActuals(itemId, {
+            actual_equipment_breakdown: [],
+            actual_equipment_cost: equipmentCostByItem.get(itemId) ?? 0,
+            actual_equipment_days: equipmentDaysByItem.get(itemId) ?? 0,
+            actual_labor_breakdown: [],
+            actual_labor_cost: laborCostByItem.get(itemId) ?? 0,
+            actual_labor_hours: laborHourByItem.get(itemId) ?? 0,
+            actual_material_breakdown: [],
+            actual_material_cost: materialCostByItem.get(itemId) ?? 0,
+            actual_overhead_cost: calculateActualOverheadCost(directCost, item.overhead_percent),
+            actual_profit_amount: 0,
+            actual_subcontract_cost: subcontractCostByItem.get(itemId) ?? 0,
+            invoice_amount: invoiceAmountByItem.get(itemId) ?? 0,
+            percent_complete: percentComplete,
+          })
+        }),
+      )
+      await loadProject({ silent: true })
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof Error ? caughtError.message : 'Unable to save project totals'
+      setScreenError(message)
+    } finally {
+      setIsProjectTotalsSaving(false)
     }
   }
 
@@ -504,23 +703,194 @@ export const ProjectPage = () => {
           </div>
 
           {prefersProjectTotals ? (
-            <div className="project-tracking-preference-banner">
-              <div className="project-tracking-preference-copy">
-                <span className="eyebrow">Tracking default</span>
-                <strong>Project totals first</strong>
-                <p className="panel-meta">
-                  Keep labor and materials simple at the project level, then open the task / WBS
-                  breakdown only when you want scope-by-scope detail.
-                </p>
+            <>
+              <section className="item-detail-section project-totals-tracker">
+                <div className="item-detail-section-heading">
+                  <div>
+                    <h2>Project totals tracker</h2>
+                    <p>
+                      Track labor, materials, equipment, and billing at the project level first.
+                      Saving here redistributes the totals across included scopes so the summary
+                      cards stay accurate while the WBS stays hidden.
+                    </p>
+                  </div>
+                  <strong>{formatCurrency(projectTotalsPreview.totalCost)}</strong>
+                </div>
+                <div className="item-detail-grid">
+                  <label>
+                    Actual labor hours
+                    <input
+                      aria-label="Actual labor hours"
+                      min="0"
+                      onChange={(event) =>
+                        setProjectTotalsDraft((current) => ({
+                          ...current,
+                          actualLaborHours: event.target.value,
+                        }))
+                      }
+                      step="0.1"
+                      type="number"
+                      value={projectTotalsDraft.actualLaborHours}
+                    />
+                  </label>
+                  <label>
+                    Actual labor cost
+                    <input
+                      aria-label="Actual labor cost"
+                      min="0"
+                      onChange={(event) =>
+                        setProjectTotalsDraft((current) => ({
+                          ...current,
+                          actualLaborCost: event.target.value,
+                        }))
+                      }
+                      step="0.01"
+                      type="number"
+                      value={projectTotalsDraft.actualLaborCost}
+                    />
+                  </label>
+                  <label>
+                    Actual material cost
+                    <input
+                      aria-label="Actual material cost"
+                      min="0"
+                      onChange={(event) =>
+                        setProjectTotalsDraft((current) => ({
+                          ...current,
+                          actualMaterialCost: event.target.value,
+                        }))
+                      }
+                      step="0.01"
+                      type="number"
+                      value={projectTotalsDraft.actualMaterialCost}
+                    />
+                  </label>
+                  <label>
+                    Actual equipment days
+                    <input
+                      aria-label="Actual equipment days"
+                      min="0"
+                      onChange={(event) =>
+                        setProjectTotalsDraft((current) => ({
+                          ...current,
+                          actualEquipmentDays: event.target.value,
+                        }))
+                      }
+                      step="0.1"
+                      type="number"
+                      value={projectTotalsDraft.actualEquipmentDays}
+                    />
+                  </label>
+                  <label>
+                    Actual equipment cost
+                    <input
+                      aria-label="Actual equipment cost"
+                      min="0"
+                      onChange={(event) =>
+                        setProjectTotalsDraft((current) => ({
+                          ...current,
+                          actualEquipmentCost: event.target.value,
+                        }))
+                      }
+                      step="0.01"
+                      type="number"
+                      value={projectTotalsDraft.actualEquipmentCost}
+                    />
+                  </label>
+                  <label>
+                    Actual subcontract cost
+                    <input
+                      aria-label="Actual subcontract cost"
+                      min="0"
+                      onChange={(event) =>
+                        setProjectTotalsDraft((current) => ({
+                          ...current,
+                          actualSubcontractCost: event.target.value,
+                        }))
+                      }
+                      step="0.01"
+                      type="number"
+                      value={projectTotalsDraft.actualSubcontractCost}
+                    />
+                  </label>
+                  <label>
+                    Percent complete
+                    <input
+                      aria-label="Percent complete"
+                      max="100"
+                      min="0"
+                      onChange={(event) =>
+                        setProjectTotalsDraft((current) => ({
+                          ...current,
+                          percentComplete: event.target.value,
+                        }))
+                      }
+                      step="1"
+                      type="number"
+                      value={projectTotalsDraft.percentComplete}
+                    />
+                  </label>
+                  <label>
+                    Invoice amount
+                    <input
+                      aria-label="Invoice amount"
+                      min="0"
+                      onChange={(event) =>
+                        setProjectTotalsDraft((current) => ({
+                          ...current,
+                          invoiceAmount: event.target.value,
+                        }))
+                      }
+                      step="0.01"
+                      type="number"
+                      value={projectTotalsDraft.invoiceAmount}
+                    />
+                  </label>
+                  <div className="item-detail-readout item-detail-readout-stack">
+                    <span>Direct actual</span>
+                    <strong>{formatCurrency(projectTotalsPreview.directCost)}</strong>
+                    <small>Overhead {formatCurrency(projectTotalsPreview.overheadCost)}</small>
+                  </div>
+                  <div className="item-detail-readout item-detail-readout-stack">
+                    <span>Tracking mode</span>
+                    <strong>Project totals first</strong>
+                    <small>{includedTrackingItems.length} included scopes stay in sync</small>
+                  </div>
+                </div>
+                {!isReadOnly ? (
+                  <div className="item-detail-savebar">
+                    <button
+                      className="primary-button"
+                      disabled={isProjectTotalsSaving || includedTrackingItems.length === 0}
+                      onClick={() => {
+                        void handleSaveProjectTotals()
+                      }}
+                      type="button"
+                    >
+                      {isProjectTotalsSaving ? 'Saving…' : 'Save project totals'}
+                    </button>
+                  </div>
+                ) : null}
+              </section>
+
+              <div className="project-tracking-preference-banner">
+                <div className="project-tracking-preference-copy">
+                  <span className="eyebrow">Tracking default</span>
+                  <strong>Project totals first</strong>
+                  <p className="panel-meta">
+                    Keep labor and materials simple at the project level, then open the task / WBS
+                    breakdown only when you want scope-by-scope detail.
+                  </p>
+                </div>
+                <button
+                  className="secondary-button"
+                  onClick={() => setIsTrackingBreakdownOpen((current) => !current)}
+                  type="button"
+                >
+                  {isTrackingBreakdownOpen ? 'Hide task / WBS breakdown' : 'Show task / WBS breakdown'}
+                </button>
               </div>
-              <button
-                className="secondary-button"
-                onClick={() => setIsTrackingBreakdownOpen((current) => !current)}
-                type="button"
-              >
-                {isTrackingBreakdownOpen ? 'Hide task / WBS breakdown' : 'Show task / WBS breakdown'}
-              </button>
-            </div>
+            </>
           ) : null}
 
           {isLoading ? (
