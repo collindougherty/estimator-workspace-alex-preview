@@ -101,26 +101,57 @@ const toProjectTotalsSnapshot = (items: ProjectItemMetric[]): ProjectTotalsSnaps
 }
 
 type ProjectQuickAddDraft = {
-  addedEquipmentCost: string
-  addedEquipmentDays: string
   addedLaborCost: string
-  addedLaborHours: string
-  addedMaterialCost: string
-  addedSubcontractCost: string
-  addedInvoiceAmount: string
-  percentComplete: string
+  addedOtherCost: string
 }
 
 const emptyProjectQuickAddDraft = (): ProjectQuickAddDraft => ({
-  addedEquipmentCost: '',
-  addedEquipmentDays: '',
   addedLaborCost: '',
-  addedLaborHours: '',
-  addedMaterialCost: '',
-  addedSubcontractCost: '',
-  addedInvoiceAmount: '',
-  percentComplete: '',
+  addedOtherCost: '',
 })
+
+const allocateCombinedNonLaborTotal = (
+  total: number,
+  items: ProjectItemMetric[],
+  snapshot: ProjectTotalsSnapshot,
+) => {
+  const estimateWeights = {
+    equipment: items.reduce((sum, item) => sum + (item.estimated_equipment_cost ?? 0), 0),
+    material: items.reduce((sum, item) => sum + (item.material_cost ?? 0), 0),
+    subcontract: items.reduce((sum, item) => sum + (item.subcontract_cost ?? 0), 0),
+  }
+  const estimateWeightTotal =
+    estimateWeights.material + estimateWeights.equipment + estimateWeights.subcontract
+
+  if (estimateWeightTotal > 0) {
+    const material = roundCurrencyValue(total * (estimateWeights.material / estimateWeightTotal))
+    const equipment = roundCurrencyValue(total * (estimateWeights.equipment / estimateWeightTotal))
+    return {
+      material,
+      equipment,
+      subcontract: roundCurrencyValue(total - material - equipment),
+    }
+  }
+
+  const actualWeightTotal =
+    snapshot.actualMaterialCost + snapshot.actualEquipmentCost + snapshot.actualSubcontractCost
+
+  if (actualWeightTotal > 0) {
+    const material = roundCurrencyValue(total * (snapshot.actualMaterialCost / actualWeightTotal))
+    const equipment = roundCurrencyValue(total * (snapshot.actualEquipmentCost / actualWeightTotal))
+    return {
+      material,
+      equipment,
+      subcontract: roundCurrencyValue(total - material - equipment),
+    }
+  }
+
+  return {
+    equipment: 0,
+    material: total,
+    subcontract: 0,
+  }
+}
 
 const distributeTotal = (
   total: number,
@@ -137,7 +168,26 @@ const distributeTotal = (
   const weightSum = rawWeights.reduce((sum, weight) => sum + weight, 0)
   const weights = weightSum > 0 ? rawWeights : items.map(() => 1)
   const normalizedWeightSum = weights.reduce((sum, weight) => sum + weight, 0)
-  let runningTotal = 0
+  const totalCents = Math.max(0, Math.round(total * 100))
+  const rawShares = weights.map((weight) => (totalCents * weight) / normalizedWeightSum)
+  const baseShares = rawShares.map((share) => Math.floor(share))
+  let remainingCents = totalCents - baseShares.reduce((sum, share) => sum + share, 0)
+
+  const remainderOrder = rawShares
+    .map((share, index) => ({
+      index,
+      remainder: share - baseShares[index],
+    }))
+    .sort((left, right) => right.remainder - left.remainder)
+
+  remainderOrder.forEach(({ index }) => {
+    if (remainingCents <= 0) {
+      return
+    }
+
+    baseShares[index] += 1
+    remainingCents -= 1
+  })
 
   items.forEach((item, index) => {
     const itemId = item.project_estimate_item_id
@@ -146,13 +196,7 @@ const distributeTotal = (
       return
     }
 
-    const value =
-      index === items.length - 1
-        ? roundCurrencyValue(total - runningTotal)
-        : roundCurrencyValue(total * (weights[index] / normalizedWeightSum))
-
-    runningTotal += value
-    values.set(itemId, value)
+    values.set(itemId, baseShares[index] / 100)
   })
 
   return values
@@ -298,17 +342,13 @@ export const ProjectPage = () => {
   const projectTotalsPreview = useMemo(() => {
     const actualLaborCost =
       projectTotalsSnapshot.actualLaborCost + parseNumericInput(projectQuickAddDraft.addedLaborCost)
-    const actualMaterialCost =
+    const actualOtherCost =
       projectTotalsSnapshot.actualMaterialCost +
-      parseNumericInput(projectQuickAddDraft.addedMaterialCost)
-    const actualEquipmentCost =
       projectTotalsSnapshot.actualEquipmentCost +
-      parseNumericInput(projectQuickAddDraft.addedEquipmentCost)
-    const actualSubcontractCost =
       projectTotalsSnapshot.actualSubcontractCost +
-      parseNumericInput(projectQuickAddDraft.addedSubcontractCost)
+      parseNumericInput(projectQuickAddDraft.addedOtherCost)
     const directCost = roundCurrencyValue(
-      actualLaborCost + actualMaterialCost + actualEquipmentCost + actualSubcontractCost,
+      actualLaborCost + actualOtherCost,
     )
     const totalEstimate = includedTrackingItems.reduce(
       (sum, item) => sum + (item.estimated_total_cost ?? 0),
@@ -325,14 +365,7 @@ export const ProjectPage = () => {
 
     return {
       directCost,
-      invoiceAmount: roundCurrencyValue(
-        projectTotalsSnapshot.invoiceAmount + parseNumericInput(projectQuickAddDraft.addedInvoiceAmount),
-      ),
       overheadCost,
-      percentComplete:
-        projectQuickAddDraft.percentComplete.trim().length > 0
-          ? parseNumericInput(projectQuickAddDraft.percentComplete)
-          : projectTotalsSnapshot.percentComplete,
       totalCost: roundCurrencyValue(directCost + overheadCost),
     }
   }, [includedTrackingItems, projectQuickAddDraft, projectTotalsSnapshot])
@@ -435,42 +468,24 @@ export const ProjectPage = () => {
     setIsProjectTotalsSaving(true)
     setScreenError(null)
 
-    const actualLaborHours = roundCurrencyValue(
-      projectTotalsSnapshot.actualLaborHours + parseNumericInput(projectQuickAddDraft.addedLaborHours),
-    )
     const actualLaborCost = roundCurrencyValue(
       projectTotalsSnapshot.actualLaborCost + parseNumericInput(projectQuickAddDraft.addedLaborCost),
     )
-    const actualMaterialCost = roundCurrencyValue(
-      projectTotalsSnapshot.actualMaterialCost + parseNumericInput(projectQuickAddDraft.addedMaterialCost),
+    const nonLaborTotals = allocateCombinedNonLaborTotal(
+      roundCurrencyValue(
+        projectTotalsSnapshot.actualMaterialCost +
+          projectTotalsSnapshot.actualEquipmentCost +
+          projectTotalsSnapshot.actualSubcontractCost +
+          parseNumericInput(projectQuickAddDraft.addedOtherCost),
+      ),
+      includedTrackingItems,
+      projectTotalsSnapshot,
     )
-    const actualEquipmentDays = roundCurrencyValue(
-      projectTotalsSnapshot.actualEquipmentDays +
-        parseNumericInput(projectQuickAddDraft.addedEquipmentDays),
-    )
-    const actualEquipmentCost = roundCurrencyValue(
-      projectTotalsSnapshot.actualEquipmentCost +
-        parseNumericInput(projectQuickAddDraft.addedEquipmentCost),
-    )
-    const actualSubcontractCost = roundCurrencyValue(
-      projectTotalsSnapshot.actualSubcontractCost +
-        parseNumericInput(projectQuickAddDraft.addedSubcontractCost),
-    )
-    const invoiceAmount = roundCurrencyValue(
-      projectTotalsSnapshot.invoiceAmount + parseNumericInput(projectQuickAddDraft.addedInvoiceAmount),
-    )
-    const percentComplete =
-      projectQuickAddDraft.percentComplete.trim().length > 0
-        ? parseNumericInput(projectQuickAddDraft.percentComplete)
-        : projectTotalsSnapshot.percentComplete
 
-    const laborHourByItem = distributeTotal(actualLaborHours, includedTrackingItems, (item) => item.labor_hours ?? 0)
     const laborCostByItem = distributeTotal(actualLaborCost, includedTrackingItems, (item) => item.estimated_labor_cost ?? 0)
-    const materialCostByItem = distributeTotal(actualMaterialCost, includedTrackingItems, (item) => item.material_cost ?? 0)
-    const equipmentDaysByItem = distributeTotal(actualEquipmentDays, includedTrackingItems, (item) => item.equipment_days ?? 0)
-    const equipmentCostByItem = distributeTotal(actualEquipmentCost, includedTrackingItems, (item) => item.estimated_equipment_cost ?? 0)
-    const subcontractCostByItem = distributeTotal(actualSubcontractCost, includedTrackingItems, (item) => item.subcontract_cost ?? 0)
-    const invoiceAmountByItem = distributeTotal(invoiceAmount, includedTrackingItems, (item) => item.estimated_total_cost ?? 0)
+    const materialCostByItem = distributeTotal(nonLaborTotals.material, includedTrackingItems, (item) => item.material_cost ?? 0)
+    const equipmentCostByItem = distributeTotal(nonLaborTotals.equipment, includedTrackingItems, (item) => item.estimated_equipment_cost ?? 0)
+    const subcontractCostByItem = distributeTotal(nonLaborTotals.subcontract, includedTrackingItems, (item) => item.subcontract_cost ?? 0)
 
     try {
       await Promise.all(
@@ -491,17 +506,17 @@ export const ProjectPage = () => {
           return updateProjectActuals(itemId, {
             actual_equipment_breakdown: [],
             actual_equipment_cost: equipmentCostByItem.get(itemId) ?? 0,
-            actual_equipment_days: equipmentDaysByItem.get(itemId) ?? 0,
+            actual_equipment_days: item.actual_equipment_days ?? 0,
             actual_labor_breakdown: [],
             actual_labor_cost: laborCostByItem.get(itemId) ?? 0,
-            actual_labor_hours: laborHourByItem.get(itemId) ?? 0,
+            actual_labor_hours: item.actual_labor_hours ?? 0,
             actual_material_breakdown: [],
             actual_material_cost: materialCostByItem.get(itemId) ?? 0,
             actual_overhead_cost: calculateActualOverheadCost(directCost, item.overhead_percent),
             actual_profit_amount: 0,
             actual_subcontract_cost: subcontractCostByItem.get(itemId) ?? 0,
-            invoice_amount: invoiceAmountByItem.get(itemId) ?? 0,
-            percent_complete: percentComplete,
+            invoice_amount: item.invoice_amount ?? 0,
+            percent_complete: item.percent_complete ?? 0,
           })
         }),
       )
@@ -795,8 +810,8 @@ export const ProjectPage = () => {
                 <h2>Quick update</h2>
                 <p>
                   {prefersProjectTotals
-                    ? 'Add what happened today, this week, or whenever you think of it. We roll it into project totals and keep the WBS tucked away.'
-                    : 'Add what happened today without opening every scope. We roll it into project totals and keep the detailed WBS below for later.'}
+                    ? 'Two numbers, done: labor cost and materials / equipment cost. We roll both into project totals and keep the WBS tucked away.'
+                    : 'Add labor cost and materials / equipment cost here without opening every scope. The detailed WBS stays below for later.'}
                 </p>
               </div>
               <strong>{formatCurrency(projectTotalsPreview.totalCost)}</strong>
@@ -808,67 +823,12 @@ export const ProjectPage = () => {
                 <small>After save {formatCurrency(projectTotalsPreview.totalCost)}</small>
               </div>
               <div className="item-detail-readout">
-                <span>Billing + progress</span>
-                <strong>{formatCurrency(projectTotalsPreview.invoiceAmount)}</strong>
-                <small>{projectTotalsPreview.percentComplete}% complete after save</small>
-              </div>
-              <div className="item-detail-readout item-detail-readout-stack">
-                <span>Sync target</span>
+                <span>This quick log updates</span>
                 <strong>{includedTrackingItems.length} scopes</strong>
                 <small>Hidden WBS stays in sync automatically</small>
               </div>
             </div>
             <div className="project-quick-update-grid">
-              <label>
-                Progress now (%)
-                <input
-                  aria-label="Progress now"
-                  max="100"
-                  min="0"
-                  onChange={(event) =>
-                    setProjectQuickAddDraft((current) => ({
-                      ...current,
-                      percentComplete: event.target.value,
-                    }))
-                  }
-                  placeholder={String(projectTotalsSnapshot.percentComplete)}
-                  step="1"
-                  type="number"
-                  value={projectQuickAddDraft.percentComplete}
-                />
-              </label>
-              <label>
-                Add invoice amount
-                <input
-                  aria-label="Add invoice amount"
-                  onChange={(event) =>
-                    setProjectQuickAddDraft((current) => ({
-                      ...current,
-                      addedInvoiceAmount: event.target.value,
-                    }))
-                  }
-                  placeholder="0"
-                  step="0.01"
-                  type="number"
-                  value={projectQuickAddDraft.addedInvoiceAmount}
-                />
-              </label>
-              <label>
-                Add labor hours
-                <input
-                  aria-label="Add labor hours"
-                  onChange={(event) =>
-                    setProjectQuickAddDraft((current) => ({
-                      ...current,
-                      addedLaborHours: event.target.value,
-                    }))
-                  }
-                  placeholder="0"
-                  step="0.1"
-                  type="number"
-                  value={projectQuickAddDraft.addedLaborHours}
-                />
-              </label>
               <label>
                 Add labor cost
                 <input
@@ -886,80 +846,22 @@ export const ProjectPage = () => {
                 />
               </label>
               <label>
-                Add material cost
+                Add materials / equipment cost
                 <input
-                  aria-label="Add material cost"
+                  aria-label="Add materials / equipment cost"
                   onChange={(event) =>
                     setProjectQuickAddDraft((current) => ({
                       ...current,
-                      addedMaterialCost: event.target.value,
+                      addedOtherCost: event.target.value,
                     }))
                   }
                   placeholder="0"
                   step="0.01"
                   type="number"
-                  value={projectQuickAddDraft.addedMaterialCost}
+                  value={projectQuickAddDraft.addedOtherCost}
                 />
               </label>
             </div>
-            <details className="project-quick-update-details">
-              <summary>Other costs</summary>
-              <div className="item-detail-grid project-quick-update-details-grid">
-                <label>
-                  Add equipment days
-                  <input
-                    aria-label="Add equipment days"
-                    onChange={(event) =>
-                      setProjectQuickAddDraft((current) => ({
-                        ...current,
-                        addedEquipmentDays: event.target.value,
-                      }))
-                    }
-                    placeholder="0"
-                    step="0.1"
-                    type="number"
-                    value={projectQuickAddDraft.addedEquipmentDays}
-                  />
-                </label>
-                <label>
-                  Add equipment cost
-                  <input
-                    aria-label="Add equipment cost"
-                    onChange={(event) =>
-                      setProjectQuickAddDraft((current) => ({
-                        ...current,
-                        addedEquipmentCost: event.target.value,
-                      }))
-                    }
-                    placeholder="0"
-                    step="0.01"
-                    type="number"
-                    value={projectQuickAddDraft.addedEquipmentCost}
-                  />
-                </label>
-                <label>
-                  Add subcontract cost
-                  <input
-                    aria-label="Add subcontract cost"
-                    onChange={(event) =>
-                      setProjectQuickAddDraft((current) => ({
-                        ...current,
-                        addedSubcontractCost: event.target.value,
-                      }))
-                    }
-                    placeholder="0"
-                    step="0.01"
-                    type="number"
-                    value={projectQuickAddDraft.addedSubcontractCost}
-                  />
-                </label>
-                <div className="item-detail-readout item-detail-readout-stack">
-                  <span>Overhead</span>
-                  <strong>{formatCurrency(projectTotalsPreview.overheadCost)}</strong>
-                  <small>Calculated from direct actuals</small>
-                </div>
-              </div>
-            </details>
             {!isReadOnly ? (
               <div className="item-detail-savebar">
                 <button
@@ -974,7 +876,7 @@ export const ProjectPage = () => {
                   }}
                   type="button"
                 >
-                  {isProjectTotalsSaving ? 'Saving…' : 'Add update to project'}
+                  {isProjectTotalsSaving ? 'Saving…' : 'Add costs to project'}
                 </button>
               </div>
             ) : null}

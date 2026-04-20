@@ -2330,7 +2330,7 @@
 
 .project-quick-update-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -2354,42 +2354,6 @@
   padding: 11px 13px;
   background: rgba(255, 255, 255, 0.92);
   color: var(--text-h);
-}
-
-.project-quick-update-details {
-  display: grid;
-  gap: 12px;
-  padding-top: 2px;
-}
-
-.project-quick-update-details summary {
-  cursor: pointer;
-  color: var(--text-h);
-  font-weight: 700;
-  list-style: none;
-}
-
-.project-quick-update-details summary::-webkit-details-marker {
-  display: none;
-}
-
-.project-quick-update-details summary::after {
-  content: 'Show';
-  margin-left: 8px;
-  color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 600;
-}
-
-.project-quick-update-details[open] summary::after {
-  content: 'Hide';
-}
-
-.project-quick-update-details-grid {
-  padding: 16px;
-  border-radius: 18px;
-  border: 1px solid rgba(134, 239, 172, 0.4);
-  background: rgba(255, 255, 255, 0.72);
 }
 
 .item-detail-section-heading {

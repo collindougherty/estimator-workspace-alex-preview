@@ -1,5 +1,8 @@
 import { devices, expect, test, type Page } from '@playwright/test'
+import { createClient } from '@supabase/supabase-js'
 import { mkdirSync, readFileSync } from 'node:fs'
+
+import type { Database } from '../src/lib/database.types'
 
 const readLocalEnv = () => {
   const content = readFileSync('.env.local', 'utf8')
@@ -26,15 +29,120 @@ const readLocalEnv = () => {
   return {
     demoEmail: values.get('VITE_DEMO_EMAIL') ?? '',
     demoPassword: values.get('VITE_DEMO_PASSWORD') ?? '',
+    supabasePublishableKey: values.get('VITE_SUPABASE_PUBLISHABLE_KEY') ?? '',
+    supabaseUrl: values.get('VITE_SUPABASE_URL') ?? '',
   }
 }
 
-const { demoEmail, demoPassword } = readLocalEnv()
+const { demoEmail, demoPassword, supabasePublishableKey, supabaseUrl } = readLocalEnv()
 const iPhone13 = devices['iPhone 13']
 const formatUsd = (value: number) =>
   new Intl.NumberFormat('en-US', { currency: 'USD', style: 'currency' }).format(value)
 const parseUsd = (value: string) => Number(value.replace(/[^0-9.-]/g, ''))
 const compactUsd = (value: number) => formatUsd(value).replace('.00', '')
+
+type ProjectActualSnapshot = Pick<
+  Database['public']['Tables']['project_item_actuals']['Row'],
+  | 'actual_equipment_breakdown'
+  | 'actual_equipment_cost'
+  | 'actual_equipment_days'
+  | 'actual_labor_breakdown'
+  | 'actual_labor_cost'
+  | 'actual_labor_hours'
+  | 'actual_material_breakdown'
+  | 'actual_material_cost'
+  | 'actual_overhead_cost'
+  | 'actual_profit_amount'
+  | 'actual_subcontract_cost'
+  | 'invoice_amount'
+  | 'percent_complete'
+  | 'project_estimate_item_id'
+>
+
+const createTestSupabaseClient = () =>
+  createClient<Database>(supabaseUrl, supabasePublishableKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
+
+const captureProjectActuals = async (projectName: string) => {
+  const client = createTestSupabaseClient()
+  const {
+    data: authData,
+    error: authError,
+  } = await client.auth.signInWithPassword({
+    email: demoEmail,
+    password: demoPassword,
+  })
+
+  if (authError || !authData.session) {
+    throw new Error(authError?.message ?? 'Unable to authenticate test client')
+  }
+
+  const { data: project, error: projectError } = await client
+    .from('project_summary')
+    .select('project_id')
+    .eq('name', projectName)
+    .single()
+
+  if (projectError || !project) {
+    throw new Error(projectError?.message ?? `Unable to load ${projectName}`)
+  }
+
+  const { data: projectItems, error: projectItemsError } = await client
+    .from('project_item_metrics')
+    .select('project_estimate_item_id')
+    .eq('project_id', project.project_id)
+
+  if (projectItemsError) {
+    throw new Error(projectItemsError.message)
+  }
+
+  const { data, error } = await client
+    .from('project_item_actuals')
+    .select(
+      'project_estimate_item_id, actual_equipment_breakdown, actual_equipment_cost, actual_equipment_days, actual_labor_breakdown, actual_labor_cost, actual_labor_hours, actual_material_breakdown, actual_material_cost, actual_overhead_cost, actual_profit_amount, actual_subcontract_cost, invoice_amount, percent_complete',
+    )
+    .in(
+      'project_estimate_item_id',
+      projectItems
+        ?.map((item) => item.project_estimate_item_id)
+        .filter((item): item is string => Boolean(item)) ?? [],
+    )
+
+  await client.auth.signOut()
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return data ?? []
+}
+
+const restoreProjectActuals = async (snapshot: ProjectActualSnapshot[]) => {
+  const client = createTestSupabaseClient()
+  const {
+    data: authData,
+    error: authError,
+  } = await client.auth.signInWithPassword({
+    email: demoEmail,
+    password: demoPassword,
+  })
+
+  if (authError || !authData.session) {
+    throw new Error(authError?.message ?? 'Unable to authenticate test client')
+  }
+
+  await Promise.all(
+    snapshot.map(({ project_estimate_item_id, ...patch }) =>
+      client.from('project_item_actuals').update(patch).eq('project_estimate_item_id', project_estimate_item_id),
+    ),
+  )
+
+  await client.auth.signOut()
+}
 
 const signInDemoUser = async (page: Page) => {
   await page.goto('/login')
@@ -184,6 +292,9 @@ test('dashboard, tracking table, and two-page bid builder render cleanly', async
 })
 
 test('settings can default active jobs to project totals first', async ({ page }) => {
+  const originalActuals = await captureProjectActuals('Pine Court Storm Repair')
+
+  try {
   await signInDemoUser(page)
   await setTrackingPreference(page, 'Project totals')
 
@@ -196,30 +307,32 @@ test('settings can default active jobs to project totals first', async ({ page }
   await expect(totalsTracker).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Quick update' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Show task / WBS breakdown' })).toBeVisible()
-  const billingSummary = totalsTracker
+  const currentActualTotal = totalsTracker
     .locator('.project-quick-update-summary .item-detail-readout')
-    .nth(1)
+    .first()
     .locator('strong')
-  const originalInvoiceTotal = parseUsd(await billingSummary.textContent())
-  const updatedInvoiceTotal = originalInvoiceTotal + 25
-  const invoiceField = page.getByLabel('Add invoice amount')
-  await invoiceField.fill('25')
-  const saveQuickUpdateButton = totalsTracker.getByRole('button', { name: 'Add update to project' })
+  const afterSavePreview = totalsTracker.locator('.item-detail-section-heading strong')
+  const laborCostField = totalsTracker.getByLabel('Add labor cost')
+  const otherCostField = totalsTracker.getByLabel('Add materials / equipment cost')
+  await laborCostField.fill('25')
+  await otherCostField.fill('40')
+  const expectedAfterSaveTotal = compactUsd(parseUsd(await afterSavePreview.textContent()))
+  const saveQuickUpdateButton = totalsTracker.getByRole('button', { name: 'Add costs to project' })
+  await expect(saveQuickUpdateButton).toBeEnabled()
   await saveQuickUpdateButton.click()
-  await expect(invoiceField).toHaveValue('')
-  await expect(billingSummary).toHaveText(compactUsd(updatedInvoiceTotal))
+  await expect(currentActualTotal).toHaveText(expectedAfterSaveTotal)
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Project tracking' })).toBeVisible()
-  await expect(page.getByLabel('Add invoice amount')).toHaveValue('')
-  await expect(billingSummary).toHaveText(compactUsd(updatedInvoiceTotal))
-  await page.getByLabel('Add invoice amount').fill('-25')
-  await page.getByRole('button', { name: 'Add update to project' }).click()
-  await expect(page.getByLabel('Add invoice amount')).toHaveValue('')
-  await expect(billingSummary).toHaveText(compactUsd(originalInvoiceTotal))
+  await expect(totalsTracker.getByLabel('Add labor cost')).toHaveValue('')
+  await expect(totalsTracker.getByLabel('Add materials / equipment cost')).toHaveValue('')
+  await expect(currentActualTotal).toHaveText(expectedAfterSaveTotal)
   await expect(page.locator('.tracking-table')).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Show task / WBS breakdown' }).click()
   await expect(page.locator('.tracking-table')).toBeVisible()
+  } finally {
+    await restoreProjectActuals(originalActuals)
+  }
 })
 
 test.describe('iphone layout', () => {
@@ -307,8 +420,9 @@ test.describe('iphone layout', () => {
     await expect(page.locator('.project-tracking-preference-banner strong')).toHaveText('Project totals first')
     await expect(page.locator('.project-totals-tracker')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Quick update' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Add update to project' })).toBeVisible()
-    await expect(page.getByLabel('Add labor hours')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Add costs to project' })).toBeVisible()
+    await expect(page.getByLabel('Add labor cost')).toBeVisible()
+    await expect(page.getByLabel('Add materials / equipment cost')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Show task / WBS breakdown' })).toBeVisible()
     await expect(page.locator('.tracking-table')).toHaveCount(0)
 
