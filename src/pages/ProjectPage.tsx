@@ -702,177 +702,194 @@ export const ProjectPage = () => {
             <span className="section-count">{isLoading ? '—' : terminalItems.length}</span>
           </div>
 
+          <section className="item-detail-section project-totals-tracker">
+            <div className="item-detail-section-heading">
+              <div>
+                <h2>Quick update</h2>
+                <p>
+                  {prefersProjectTotals
+                    ? 'Log the latest project totals here and keep the WBS tucked away until you need detail.'
+                    : 'Log the latest project totals here first, then use the detailed WBS below only when you need scope-level edits.'}
+                </p>
+              </div>
+              <strong>{formatCurrency(projectTotalsPreview.totalCost)}</strong>
+            </div>
+            <div className="project-quick-update-summary">
+              <div className="item-detail-readout">
+                <span>Actual total</span>
+                <strong>{formatCurrency(projectTotalsPreview.totalCost)}</strong>
+                <small>Direct {formatCurrency(projectTotalsPreview.directCost)}</small>
+              </div>
+              <div className="item-detail-readout">
+                <span>Invoice</span>
+                <strong>{formatCurrency(parseNumericInput(projectTotalsDraft.invoiceAmount))}</strong>
+                <small>{projectTotalsDraft.percentComplete}% complete</small>
+              </div>
+              <div className="item-detail-readout item-detail-readout-stack">
+                <span>Sync target</span>
+                <strong>{includedTrackingItems.length} scopes</strong>
+                <small>Hidden WBS stays in sync automatically</small>
+              </div>
+            </div>
+            <div className="project-quick-update-grid">
+              <label>
+                Percent complete
+                <input
+                  aria-label="Percent complete"
+                  max="100"
+                  min="0"
+                  onChange={(event) =>
+                    setProjectTotalsDraft((current) => ({
+                      ...current,
+                      percentComplete: event.target.value,
+                    }))
+                  }
+                  step="1"
+                  type="number"
+                  value={projectTotalsDraft.percentComplete}
+                />
+              </label>
+              <label>
+                Invoice amount
+                <input
+                  aria-label="Invoice amount"
+                  min="0"
+                  onChange={(event) =>
+                    setProjectTotalsDraft((current) => ({
+                      ...current,
+                      invoiceAmount: event.target.value,
+                    }))
+                  }
+                  step="0.01"
+                  type="number"
+                  value={projectTotalsDraft.invoiceAmount}
+                />
+              </label>
+              <label>
+                Labor hours
+                <input
+                  aria-label="Actual labor hours"
+                  min="0"
+                  onChange={(event) =>
+                    setProjectTotalsDraft((current) => ({
+                      ...current,
+                      actualLaborHours: event.target.value,
+                    }))
+                  }
+                  step="0.1"
+                  type="number"
+                  value={projectTotalsDraft.actualLaborHours}
+                />
+              </label>
+              <label>
+                Labor cost
+                <input
+                  aria-label="Actual labor cost"
+                  min="0"
+                  onChange={(event) =>
+                    setProjectTotalsDraft((current) => ({
+                      ...current,
+                      actualLaborCost: event.target.value,
+                    }))
+                  }
+                  step="0.01"
+                  type="number"
+                  value={projectTotalsDraft.actualLaborCost}
+                />
+              </label>
+              <label>
+                Material cost
+                <input
+                  aria-label="Actual material cost"
+                  min="0"
+                  onChange={(event) =>
+                    setProjectTotalsDraft((current) => ({
+                      ...current,
+                      actualMaterialCost: event.target.value,
+                    }))
+                  }
+                  step="0.01"
+                  type="number"
+                  value={projectTotalsDraft.actualMaterialCost}
+                />
+              </label>
+            </div>
+            <details className="project-quick-update-details">
+              <summary>Other costs</summary>
+              <div className="item-detail-grid project-quick-update-details-grid">
+                <label>
+                  Equipment days
+                  <input
+                    aria-label="Actual equipment days"
+                    min="0"
+                    onChange={(event) =>
+                      setProjectTotalsDraft((current) => ({
+                        ...current,
+                        actualEquipmentDays: event.target.value,
+                      }))
+                    }
+                    step="0.1"
+                    type="number"
+                    value={projectTotalsDraft.actualEquipmentDays}
+                  />
+                </label>
+                <label>
+                  Equipment cost
+                  <input
+                    aria-label="Actual equipment cost"
+                    min="0"
+                    onChange={(event) =>
+                      setProjectTotalsDraft((current) => ({
+                        ...current,
+                        actualEquipmentCost: event.target.value,
+                      }))
+                    }
+                    step="0.01"
+                    type="number"
+                    value={projectTotalsDraft.actualEquipmentCost}
+                  />
+                </label>
+                <label>
+                  Subcontract cost
+                  <input
+                    aria-label="Actual subcontract cost"
+                    min="0"
+                    onChange={(event) =>
+                      setProjectTotalsDraft((current) => ({
+                        ...current,
+                        actualSubcontractCost: event.target.value,
+                      }))
+                    }
+                    step="0.01"
+                    type="number"
+                    value={projectTotalsDraft.actualSubcontractCost}
+                  />
+                </label>
+                <div className="item-detail-readout item-detail-readout-stack">
+                  <span>Overhead</span>
+                  <strong>{formatCurrency(projectTotalsPreview.overheadCost)}</strong>
+                  <small>Calculated from direct actuals</small>
+                </div>
+              </div>
+            </details>
+            {!isReadOnly ? (
+              <div className="item-detail-savebar">
+                <button
+                  className="primary-button"
+                  disabled={isProjectTotalsSaving || includedTrackingItems.length === 0}
+                  onClick={() => {
+                    void handleSaveProjectTotals()
+                  }}
+                  type="button"
+                >
+                  {isProjectTotalsSaving ? 'Saving…' : 'Save quick update'}
+                </button>
+              </div>
+            ) : null}
+          </section>
+
           {prefersProjectTotals ? (
             <>
-              <section className="item-detail-section project-totals-tracker">
-                <div className="item-detail-section-heading">
-                  <div>
-                    <h2>Project totals tracker</h2>
-                    <p>
-                      Track labor, materials, equipment, and billing at the project level first.
-                      Saving here redistributes the totals across included scopes so the summary
-                      cards stay accurate while the WBS stays hidden.
-                    </p>
-                  </div>
-                  <strong>{formatCurrency(projectTotalsPreview.totalCost)}</strong>
-                </div>
-                <div className="item-detail-grid">
-                  <label>
-                    Actual labor hours
-                    <input
-                      aria-label="Actual labor hours"
-                      min="0"
-                      onChange={(event) =>
-                        setProjectTotalsDraft((current) => ({
-                          ...current,
-                          actualLaborHours: event.target.value,
-                        }))
-                      }
-                      step="0.1"
-                      type="number"
-                      value={projectTotalsDraft.actualLaborHours}
-                    />
-                  </label>
-                  <label>
-                    Actual labor cost
-                    <input
-                      aria-label="Actual labor cost"
-                      min="0"
-                      onChange={(event) =>
-                        setProjectTotalsDraft((current) => ({
-                          ...current,
-                          actualLaborCost: event.target.value,
-                        }))
-                      }
-                      step="0.01"
-                      type="number"
-                      value={projectTotalsDraft.actualLaborCost}
-                    />
-                  </label>
-                  <label>
-                    Actual material cost
-                    <input
-                      aria-label="Actual material cost"
-                      min="0"
-                      onChange={(event) =>
-                        setProjectTotalsDraft((current) => ({
-                          ...current,
-                          actualMaterialCost: event.target.value,
-                        }))
-                      }
-                      step="0.01"
-                      type="number"
-                      value={projectTotalsDraft.actualMaterialCost}
-                    />
-                  </label>
-                  <label>
-                    Actual equipment days
-                    <input
-                      aria-label="Actual equipment days"
-                      min="0"
-                      onChange={(event) =>
-                        setProjectTotalsDraft((current) => ({
-                          ...current,
-                          actualEquipmentDays: event.target.value,
-                        }))
-                      }
-                      step="0.1"
-                      type="number"
-                      value={projectTotalsDraft.actualEquipmentDays}
-                    />
-                  </label>
-                  <label>
-                    Actual equipment cost
-                    <input
-                      aria-label="Actual equipment cost"
-                      min="0"
-                      onChange={(event) =>
-                        setProjectTotalsDraft((current) => ({
-                          ...current,
-                          actualEquipmentCost: event.target.value,
-                        }))
-                      }
-                      step="0.01"
-                      type="number"
-                      value={projectTotalsDraft.actualEquipmentCost}
-                    />
-                  </label>
-                  <label>
-                    Actual subcontract cost
-                    <input
-                      aria-label="Actual subcontract cost"
-                      min="0"
-                      onChange={(event) =>
-                        setProjectTotalsDraft((current) => ({
-                          ...current,
-                          actualSubcontractCost: event.target.value,
-                        }))
-                      }
-                      step="0.01"
-                      type="number"
-                      value={projectTotalsDraft.actualSubcontractCost}
-                    />
-                  </label>
-                  <label>
-                    Percent complete
-                    <input
-                      aria-label="Percent complete"
-                      max="100"
-                      min="0"
-                      onChange={(event) =>
-                        setProjectTotalsDraft((current) => ({
-                          ...current,
-                          percentComplete: event.target.value,
-                        }))
-                      }
-                      step="1"
-                      type="number"
-                      value={projectTotalsDraft.percentComplete}
-                    />
-                  </label>
-                  <label>
-                    Invoice amount
-                    <input
-                      aria-label="Invoice amount"
-                      min="0"
-                      onChange={(event) =>
-                        setProjectTotalsDraft((current) => ({
-                          ...current,
-                          invoiceAmount: event.target.value,
-                        }))
-                      }
-                      step="0.01"
-                      type="number"
-                      value={projectTotalsDraft.invoiceAmount}
-                    />
-                  </label>
-                  <div className="item-detail-readout item-detail-readout-stack">
-                    <span>Direct actual</span>
-                    <strong>{formatCurrency(projectTotalsPreview.directCost)}</strong>
-                    <small>Overhead {formatCurrency(projectTotalsPreview.overheadCost)}</small>
-                  </div>
-                  <div className="item-detail-readout item-detail-readout-stack">
-                    <span>Tracking mode</span>
-                    <strong>Project totals first</strong>
-                    <small>{includedTrackingItems.length} included scopes stay in sync</small>
-                  </div>
-                </div>
-                {!isReadOnly ? (
-                  <div className="item-detail-savebar">
-                    <button
-                      className="primary-button"
-                      disabled={isProjectTotalsSaving || includedTrackingItems.length === 0}
-                      onClick={() => {
-                        void handleSaveProjectTotals()
-                      }}
-                      type="button"
-                    >
-                      {isProjectTotalsSaving ? 'Saving…' : 'Save project totals'}
-                    </button>
-                  </div>
-                ) : null}
-              </section>
-
               <div className="project-tracking-preference-banner">
                 <div className="project-tracking-preference-copy">
                   <span className="eyebrow">Tracking default</span>

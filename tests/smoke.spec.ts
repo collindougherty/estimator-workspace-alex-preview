@@ -76,6 +76,7 @@ test('dashboard, tracking table, and two-page bid builder render cleanly', async
   await page.getByRole('link', { name: /Pine Court Storm Repair/i }).click()
   await expect(page.getByRole('heading', { name: 'Pine Court Storm Repair' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Terminal items' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Quick update' })).toBeVisible()
   await expect(page.locator('.tracking-table')).toBeVisible()
   await page.screenshot({
     path: 'artifacts/iteration-11-builder-layout/project-tracking-list.png',
@@ -191,12 +192,13 @@ test('settings can default active jobs to project totals first', async ({ page }
   await expect(page.locator('.project-tracking-preference-banner strong')).toHaveText('Project totals first')
   const totalsTracker = page.locator('.project-totals-tracker')
   await expect(totalsTracker).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Quick update' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Show task / WBS breakdown' })).toBeVisible()
   const invoiceField = page.getByLabel('Invoice amount')
   const originalInvoice = await invoiceField.inputValue()
   const updatedInvoice = String(Number(originalInvoice || '0') + 25)
   await invoiceField.fill(updatedInvoice)
-  await totalsTracker.getByRole('button', { name: 'Save project totals' }).click()
+  await totalsTracker.getByRole('button', { name: 'Save quick update' }).click()
   await expect(page.locator('.metric-card').filter({ hasText: 'Profit' })).toContainText(
     `Invoice ${formatUsd(Number(updatedInvoice)).replace('.00', '')}`,
   )
@@ -204,7 +206,7 @@ test('settings can default active jobs to project totals first', async ({ page }
   await expect(page.getByRole('heading', { name: 'Project tracking' })).toBeVisible()
   await expect(page.getByLabel('Invoice amount')).toHaveValue(updatedInvoice)
   await page.getByLabel('Invoice amount').fill(originalInvoice)
-  await page.getByRole('button', { name: 'Save project totals' }).click()
+  await page.getByRole('button', { name: 'Save quick update' }).click()
   await expect(page.locator('.tracking-table')).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Show task / WBS breakdown' }).click()
@@ -295,7 +297,8 @@ test.describe('iphone layout', () => {
     await expect(page.getByRole('heading', { name: 'Project tracking' })).toBeVisible()
     await expect(page.locator('.project-tracking-preference-banner strong')).toHaveText('Project totals first')
     await expect(page.locator('.project-totals-tracker')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Save project totals' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Quick update' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Save quick update' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Show task / WBS breakdown' })).toBeVisible()
     await expect(page.locator('.tracking-table')).toHaveCount(0)
 
