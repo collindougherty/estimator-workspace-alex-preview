@@ -33,6 +33,8 @@ const { demoEmail, demoPassword } = readLocalEnv()
 const iPhone13 = devices['iPhone 13']
 const formatUsd = (value: number) =>
   new Intl.NumberFormat('en-US', { currency: 'USD', style: 'currency' }).format(value)
+const parseUsd = (value: string) => Number(value.replace(/[^0-9.-]/g, ''))
+const compactUsd = (value: number) => formatUsd(value).replace('.00', '')
 
 const signInDemoUser = async (page: Page) => {
   await page.goto('/login')
@@ -194,19 +196,26 @@ test('settings can default active jobs to project totals first', async ({ page }
   await expect(totalsTracker).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Quick update' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Show task / WBS breakdown' })).toBeVisible()
-  const invoiceField = page.getByLabel('Invoice amount')
-  const originalInvoice = await invoiceField.inputValue()
-  const updatedInvoice = String(Number(originalInvoice || '0') + 25)
-  await invoiceField.fill(updatedInvoice)
-  await totalsTracker.getByRole('button', { name: 'Save quick update' }).click()
-  await expect(page.locator('.metric-card').filter({ hasText: 'Profit' })).toContainText(
-    `Invoice ${formatUsd(Number(updatedInvoice)).replace('.00', '')}`,
-  )
+  const billingSummary = totalsTracker
+    .locator('.project-quick-update-summary .item-detail-readout')
+    .nth(1)
+    .locator('strong')
+  const originalInvoiceTotal = parseUsd(await billingSummary.textContent())
+  const updatedInvoiceTotal = originalInvoiceTotal + 25
+  const invoiceField = page.getByLabel('Add invoice amount')
+  await invoiceField.fill('25')
+  const saveQuickUpdateButton = totalsTracker.getByRole('button', { name: 'Add update to project' })
+  await saveQuickUpdateButton.click()
+  await expect(invoiceField).toHaveValue('')
+  await expect(billingSummary).toHaveText(compactUsd(updatedInvoiceTotal))
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Project tracking' })).toBeVisible()
-  await expect(page.getByLabel('Invoice amount')).toHaveValue(updatedInvoice)
-  await page.getByLabel('Invoice amount').fill(originalInvoice)
-  await page.getByRole('button', { name: 'Save quick update' }).click()
+  await expect(page.getByLabel('Add invoice amount')).toHaveValue('')
+  await expect(billingSummary).toHaveText(compactUsd(updatedInvoiceTotal))
+  await page.getByLabel('Add invoice amount').fill('-25')
+  await page.getByRole('button', { name: 'Add update to project' }).click()
+  await expect(page.getByLabel('Add invoice amount')).toHaveValue('')
+  await expect(billingSummary).toHaveText(compactUsd(originalInvoiceTotal))
   await expect(page.locator('.tracking-table')).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Show task / WBS breakdown' }).click()
@@ -298,7 +307,8 @@ test.describe('iphone layout', () => {
     await expect(page.locator('.project-tracking-preference-banner strong')).toHaveText('Project totals first')
     await expect(page.locator('.project-totals-tracker')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Quick update' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Save quick update' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Add update to project' })).toBeVisible()
+    await expect(page.getByLabel('Add labor hours')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Show task / WBS breakdown' })).toBeVisible()
     await expect(page.locator('.tracking-table')).toHaveCount(0)
 
