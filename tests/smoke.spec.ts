@@ -348,6 +348,8 @@ test.describe('iphone layout', () => {
     mkdirSync('artifacts/iteration-11-builder-layout-mobile', { recursive: true })
 
     await signInDemoUser(page)
+    await setTrackingPreference(page, 'Project totals')
+    await page.goto('/')
 
     await expect(page.getByRole('heading', { name: 'ProfitBuilder' })).toBeVisible()
     await expect(page.locator('.app-brand-mark')).toBeVisible()
@@ -363,6 +365,22 @@ test.describe('iphone layout', () => {
       path: 'artifacts/iteration-11-builder-layout-mobile/dashboard-iphone13.png',
       fullPage: true,
     })
+
+    await activeCard.getByRole('link', { name: 'Open project' }).click()
+    await expect(page.getByRole('heading', { name: 'Pine Court Storm Repair' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Project tracking' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Quick update' })).toBeVisible()
+    await expect(page.getByText('Quick add view')).toBeVisible()
+    await expect(page.locator('.tracking-mobile-quick-card')).toHaveCount(2)
+    await expect(page.locator('.tracking-mobile-scope-details')).toContainText('Show WBS details')
+    await expect(page.locator('.tracking-table')).toHaveCount(0)
+    await page.screenshot({
+      path: 'artifacts/iteration-11-builder-layout-mobile/project-tracking-iphone13.png',
+      fullPage: true,
+    })
+
+    await page.getByRole('link', { name: /Back/i }).click()
+    await expect(page.getByRole('heading', { name: 'ProfitBuilder' })).toBeVisible()
 
     const bidCard = page.locator('.dashboard-mobile-card').filter({ hasText: 'Maple Street Roof Replacement' })
     await bidCard.locator('summary').click()
@@ -417,19 +435,19 @@ test.describe('iphone layout', () => {
 
     await expect(page.getByRole('heading', { name: 'Pine Court Storm Repair' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Project tracking' })).toBeVisible()
-    await expect(page.locator('.project-tracking-preference-banner strong')).toHaveText('Project totals first')
     await expect(page.locator('.project-totals-tracker')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Quick update' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Add costs to project' })).toBeVisible()
     await expect(page.getByLabel('Add labor cost')).toBeVisible()
     await expect(page.getByLabel('Add materials / equipment cost')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Show task / WBS breakdown' })).toBeVisible()
+    await expect(page.getByText('Quick add view')).toBeVisible()
+    await expect(page.locator('.tracking-mobile-quick-card')).toHaveCount(2)
+    await expect(page.locator('.tracking-mobile-scope-details')).toContainText('Show WBS details')
     await expect(page.locator('.tracking-table')).toHaveCount(0)
 
-    await page.getByRole('button', { name: 'Show task / WBS breakdown' }).click()
+    await page.locator('.tracking-mobile-scope-details > summary').click()
     await expect(page.locator('.project-mobile-panel-pills')).toBeVisible()
-    await expect(page.locator('.worksheet-mobile-shell')).toBeVisible()
-    await expect(page.locator('.worksheet-desktop-shell')).toBeHidden()
+    await expect(page.locator('.worksheet-mobile-card-list').first()).toBeVisible()
     await expect(page.locator('.worksheet-mobile-card').first()).toBeVisible()
     await page.screenshot({
       path: 'artifacts/iteration-11-tracking-mobile/project-tracking-iphone13.png',

@@ -5,6 +5,7 @@ import { CompanyLibraryPanel } from '../components/CompanyLibraryPanel'
 import { FloatingPanel } from '../components/FloatingPanel'
 import { MetricCard } from '../components/MetricCard'
 import { ProjectEstimateBuilder } from '../components/ProjectEstimateBuilder'
+import { ProjectMobileWorksheet } from '../components/ProjectMobileWorksheet'
 import { StatusBadge } from '../components/StatusBadge'
 import { TrackingTable } from '../components/TrackingTable'
 import { useAuth } from '../hooks/useAuth'
@@ -109,6 +110,11 @@ const emptyProjectQuickAddDraft = (): ProjectQuickAddDraft => ({
   addedLaborCost: '',
   addedOtherCost: '',
 })
+
+const MOBILE_PROJECT_BREAKPOINT = '(max-width: 780px)'
+
+const matchesMobileProjectViewport = () =>
+  typeof window !== 'undefined' && window.matchMedia(MOBILE_PROJECT_BREAKPOINT).matches
 
 const allocateCombinedNonLaborTotal = (
   total: number,
@@ -217,6 +223,9 @@ export const ProjectPage = () => {
   const [projectQuickAddDraft, setProjectQuickAddDraft] = useState<ProjectQuickAddDraft>(() =>
     emptyProjectQuickAddDraft(),
   )
+  const [isMobileProjectViewport, setIsMobileProjectViewport] = useState(
+    matchesMobileProjectViewport,
+  )
   const [isTrackingBreakdownOpen, setIsTrackingBreakdownOpen] = useState(true)
   const { trackingPreference } = useTrackingPreference(user?.id)
   const {
@@ -274,6 +283,24 @@ export const ProjectPage = () => {
   useEffect(() => {
     void loadProject()
   }, [loadProject])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const mediaQuery = window.matchMedia(MOBILE_PROJECT_BREAKPOINT)
+    const handleViewportChange = (event: MediaQueryListEvent) => {
+      setIsMobileProjectViewport(event.matches)
+    }
+
+    setIsMobileProjectViewport(mediaQuery.matches)
+    mediaQuery.addEventListener('change', handleViewportChange)
+
+    return () => {
+      mediaQuery.removeEventListener('change', handleViewportChange)
+    }
+  }, [])
 
   useEffect(() => {
     setIsTrackingBreakdownOpen(trackingPreference !== 'project-totals')
@@ -391,6 +418,22 @@ export const ProjectPage = () => {
       ),
     [includedTrackingItems, projectTotalsSnapshot],
   )
+  const projectTrackingQuickSummary = useMemo(
+    () => ({
+      actual: currentProjectActualTotal,
+      bid: includedTrackingItems.reduce((sum, item) => sum + (item.estimated_total_cost ?? 0), 0),
+      labor: projectTotalsSnapshot.actualLaborCost,
+      other: roundCurrencyValue(
+        currentProjectActualTotal -
+          projectTotalsSnapshot.actualLaborCost -
+          projectTotalsSnapshot.actualMaterialCost -
+          projectTotalsSnapshot.actualEquipmentCost,
+      ),
+      production:
+        projectTotalsSnapshot.actualMaterialCost + projectTotalsSnapshot.actualEquipmentCost,
+    }),
+    [currentProjectActualTotal, includedTrackingItems, projectTotalsSnapshot],
+  )
   const hasProjectQuickAddChanges = useMemo(
     () =>
       Object.values(projectQuickAddDraft).some((value) => value.trim().length > 0),
@@ -400,6 +443,8 @@ export const ProjectPage = () => {
   useEffect(() => {
     setProjectQuickAddDraft(emptyProjectQuickAddDraft())
   }, [projectId])
+
+  const showsMobileProjectQuickView = prefersProjectTotals && isMobileProjectViewport
 
   if (!projectId) {
     return <Navigate replace to="/" />
@@ -882,7 +927,7 @@ export const ProjectPage = () => {
             ) : null}
           </section>
 
-          {prefersProjectTotals ? (
+          {prefersProjectTotals && !showsMobileProjectQuickView ? (
             <>
               <div className="project-tracking-preference-banner">
                 <div className="project-tracking-preference-copy">
@@ -908,6 +953,56 @@ export const ProjectPage = () => {
             <div className="panel-empty">Loading terminal items…</div>
           ) : terminalItems.length === 0 ? (
             <div className="panel-empty">No terminal items yet.</div>
+          ) : showsMobileProjectQuickView ? (
+            <div className="tracking-mobile-quick-shell">
+              <section className="tracking-mobile-quick-summary">
+                <div className="tracking-mobile-quick-header">
+                  <div>
+                    <h3>Quick add view</h3>
+                    <p>
+                      Keep WBS out of the way here. This mobile view rolls the job up to simple
+                      project-level costs first.
+                    </p>
+                  </div>
+                  <div className="tracking-mobile-quick-total">
+                    <span>Total actual</span>
+                    <strong>{formatCurrency(projectTrackingQuickSummary.actual)}</strong>
+                    <small>Bid {formatCurrency(projectTrackingQuickSummary.bid)}</small>
+                  </div>
+                </div>
+
+                <div className="tracking-mobile-quick-grid">
+                  <article className="tracking-mobile-quick-card">
+                    <span>Labor</span>
+                    <strong>{formatCurrency(projectTrackingQuickSummary.labor)}</strong>
+                  </article>
+                  <article className="tracking-mobile-quick-card">
+                    <span>Materials + equipment</span>
+                    <strong>{formatCurrency(projectTrackingQuickSummary.production)}</strong>
+                  </article>
+                </div>
+
+                <p className="tracking-mobile-quick-note">
+                  Other costs: {formatCurrency(projectTrackingQuickSummary.other)}
+                </p>
+              </section>
+
+              <details className="tracking-mobile-scope-details">
+                <summary>Show WBS details</summary>
+                <p>
+                  Open the scope list only when you need exact allocation. The quick-add view above
+                  stays project-level on purpose.
+                </p>
+                <ProjectMobileWorksheet
+                  isSaving={null}
+                  items={terminalItems}
+                  mode="tracking"
+                  onSaveEstimateRow={handleSaveEstimateRow}
+                  onSaveTrackingRow={handleSaveActualRow}
+                  readOnly={isReadOnly}
+                />
+              </details>
+            </div>
           ) : prefersProjectTotals && !isTrackingBreakdownOpen ? (
             <div className="panel-empty">
               Task / WBS breakdown is hidden for this preference. Use the button above if you need
